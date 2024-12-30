@@ -6,7 +6,7 @@ from nonebot import get_plugin_config
 from nonebot.log import logger
 from nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_saa import SaaTarget, Text, PlatformTarget
+from nonebot_plugin_saa import SaaTarget, Text
 
 from .config import Config
 
@@ -16,7 +16,7 @@ NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 NASA_API_KEY = plugin_config.nasa_api_key
 
 
-def save_task_config(send_time: str):
+def save_task_config(send_time: str, target: SaaTarget):
     data_file = store.get_plugin_data_file("task_config.json")
     config = {'send_time': send_time}
     data_file.write_text(json.dumps(config))
@@ -46,7 +46,7 @@ async def fetch_apod_data():
         return None
 
 
-async def send_apod(target: PlatformTarget):
+async def send_apod(target: SaaTarget):
     apod_data = await fetch_apod_data()
     if apod_data:
         url = apod_data.get("url")
@@ -56,9 +56,7 @@ async def send_apod(target: PlatformTarget):
         await Text("无法获取今天的天文图片。").send_to(target)
 
 
-def schedule_apod_task(send_time: str = None):
-    if send_time is None:
-        send_time = plugin_config.default_apod_send_time    
+def schedule_apod_task(send_time: str, target: SaaTarget):
     try:
         hour, minute = map(int, send_time.split(":"))
         scheduler.add_job(
