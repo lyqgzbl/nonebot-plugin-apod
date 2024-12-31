@@ -7,6 +7,7 @@ from nonebot import get_plugin_config
 from nonebot.log import logger
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_saa import Text, PlatformTarget
+from nonebot_plugin_saa import TargetQQGroup  # 示例中用到的目标子类
 from .config import Config
 
 plugin_config = get_plugin_config(Config)
@@ -110,6 +111,7 @@ def remove_apod_task(target: PlatformTarget):
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
+# 恢复任务
 try:
     tasks = load_task_configs()
     for task in tasks:
