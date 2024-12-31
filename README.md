@@ -34,7 +34,7 @@ pip install nonebot-plugin-apod
 
 ## 使用
 命令需要加 [NoneBot 命令前缀](https://nonebot.dev/docs/appendices/config#command-start-和-command-separator) (默认为`/`)  
-命令需要用户为 [SuperUsers](https://nonebot.dev/docs/appendices/config#superusers)
+命令需要用户为 [SuperUsers](https://nonebot.dev/docs/appendices/config#superusers)  
 使用命令`APOD`/`apod`触发插件  
 命令选项`状态` 查询定时任务状态  
 命令选项`关闭` 关闭定时任务  
