@@ -48,7 +48,7 @@ async def fetch_apod_data():
         return None
 
 
-async def send_apod(target: SaaTarget):
+async def send_apod_task(target: SaaTarget):
     apod_data = await fetch_apod_data()
     if apod_data:
         title = apod_data.get("title", "NASA APOD")
