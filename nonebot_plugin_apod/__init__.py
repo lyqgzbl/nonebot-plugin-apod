@@ -1,4 +1,5 @@
 import re
+import json
 
 from nonebot import require, get_plugin_config
 from nonebot.rule import Rule
@@ -10,9 +11,10 @@ require("nonebot_plugin_saa")
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
 require("nonebot_plugin_apscheduler")
+import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_saa import SaaTarget, enable_auto_select_bot
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
+from nonebot_plugin_saa import SaaTarget, enable_auto_select_bot, PlatformTarget, get_target
 
 from .config import Config
 from .apod import send_apod, remove_apod_task, schedule_apod_task
@@ -76,17 +78,40 @@ def is_valid_time_format(time_str: str) -> bool:
 
 
 @apod.assign("status")
-async def apod_status():
-    job = scheduler.get_job("send_apod_task")
-    if job:
-        next_run = job.next_run_time.strftime("%Y-%m-%d %H:%M:%S") if job.next_run_time else "未知"
-        await apod.finish(f"NASA 每日天文一图定时任务已开启,下次发送时间为 {next_run}")
-    await apod.finish(" NASA 每日天文一图定时任务未开启")
+async def apod_status(event):
+    task_config_file = store.get_plugin_data_file("apod_task_config.json")
+    if not task_config_file.exists():
+        await apod.finish("NASA 每日天文一图定时任务未开启")
+    try:
+        with task_config_file.open("r", encoding="utf-8") as f:
+            config = json.load(f)
+        tasks = config.get("tasks", [])
+    except Exception as e:
+        await apod.finish(f"加载任务配置时发生错误：{e}")
+    if not tasks:
+        await apod.finish("NASA 每日天文一图定时任务未开启")
+    current_target = get_target(event)
+    for task in tasks:
+        target_data = task["target"]
+        target = PlatformTarget.deserialize(target_data)
+        if target == current_target:
+            send_time = task["send_time"]
+            job_id = f"send_apod_task_{target.dict()}"
+            job = scheduler.get_job(job_id)
+            if job:
+                next_run = (
+                    job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                    if job.next_run_time else "未知"
+                )
+                await apod.finish(f"NASA 每日天文一图定时任务已开启 | 下次发送时间: {next_run}")
+            else:
+                await apod.finish("NASA 每日天文一图定时任务未开启")
+    await apod.finish("NASA 每日天文一图定时任务未开启")
 
 
 @apod.assign("stop")
-async def apod_stop():
-    remove_apod_task()
+async def apod_stop(target: SaaTarget):
+    remove_apod_task(target)
     await apod.finish("已关闭 NASA 每日天文一图定时任务")
 
 
