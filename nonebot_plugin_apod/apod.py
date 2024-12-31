@@ -3,11 +3,10 @@ import httpx
 import json
 import nonebot_plugin_localstore as store
 
-from nonebot import get_plugin_config
+from nonebot import get_plugin_config, get_bot
 from nonebot.log import logger
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_saa import Text, PlatformTarget
-from nonebot_plugin_saa import TargetQQGroup  # 示例中用到的目标子类
+from nonebot_plugin_saa import Text, Image, PlatformTarget
 from .config import Config
 
 plugin_config = get_plugin_config(Config)
@@ -61,15 +60,14 @@ async def send_apod(target: PlatformTarget):
         title = apod_data.get("title", "NASA APOD")
         url = apod_data.get("url")
         try:
-            from nonebot_plugin_saa import Image
-            await Image(url).send_to(target)
-            await Text(f"链接：{url}").send_to(target)
+            await Image(url).send_to(target, bot=get_bot())
+            await Text(f"链接：{url}").send_to(target, bot=get_bot())
         except Exception as e:
             logger.error(f"发送 NASA 每日天文一图时发生错误：{e}")
-            await Text("发送 NASA 每日天文一图时发生错误").send_to(target)
+            await Text("发送 NASA 每日天文一图时发生错误").send_to(target, bot=get_bot())
     else:
         logger.error("无法获取今天的天文图片")
-        await Text("无法获取今天的天文图片。").send_to(target)
+        await Text("无法获取今天的天文图片。").send_to(target, bot=get_bot())
 
 
 def schedule_apod_task(send_time: str, target: PlatformTarget):
@@ -111,7 +109,6 @@ def remove_apod_task(target: PlatformTarget):
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
-# 恢复任务
 try:
     tasks = load_task_configs()
     for task in tasks:
