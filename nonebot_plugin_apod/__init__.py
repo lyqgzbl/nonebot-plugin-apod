@@ -35,11 +35,12 @@ __plugin_meta__ = PluginMetadata(
 
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
-if not plugin_config.nasa_api_key:
+task_config_file = store.get_plugin_data_file("apod_task_config.json")
+if not plugin_config.apod_api_key:
     logger.opt(colors=True).warning("<yellow>缺失必要配置项 'nasa_api_key'，已禁用该插件</yellow>")
 def is_enable() -> Rule:
     def _rule() -> bool:
-        return bool(plugin_config.nasa_api_key)
+        return bool(plugin_config.apod_api_key)
     return Rule(_rule)
 
 
@@ -79,7 +80,6 @@ def is_valid_time_format(time_str: str) -> bool:
 
 @apod.assign("status")
 async def apod_status(event):
-    task_config_file = store.get_plugin_data_file("apod_task_config.json")
     if not task_config_file.exists():
         await apod.finish("NASA 每日天文一图定时任务未开启")
     try:
@@ -128,6 +128,6 @@ async def apod_start(send_time: Match[str], target: SaaTarget):
             logger.error(f"设置 NASA 每日天文一图定时任务时发生错误:{e}")
             await apod.finish("设置 NASA 每日天文一图定时任务时发生错误")
     else:
-        default_time = plugin_config.default_apod_send_time
+        default_time = plugin_config.apod_default_send_time
         schedule_apod_task(default_time, target)
         await apod.finish(f"已开启 NASA 每日天文一图定时任务,默认发送时间为 {default_time}")

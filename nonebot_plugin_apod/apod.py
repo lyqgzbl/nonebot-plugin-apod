@@ -11,7 +11,7 @@ from .config import Config
 
 plugin_config = get_plugin_config(Config)
 NASA_API_URL = "https://api.nasa.gov/planetary/apod"
-NASA_API_KEY = plugin_config.nasa_api_key
+NASA_API_KEY = plugin_config.apod_api_key
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 

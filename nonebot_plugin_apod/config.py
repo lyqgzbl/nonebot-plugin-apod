@@ -3,5 +3,5 @@ from pydantic import BaseModel
 
 
 class Config(BaseModel):
-    nasa_api_key: Optional[str] = None
-    default_apod_send_time: str = "13:00"
+    apod_api_key: Optional[str] = None
+    apod_default_send_time: str = "13:00"
