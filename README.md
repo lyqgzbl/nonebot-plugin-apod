@@ -44,13 +44,13 @@ pip install nonebot-plugin-apod
 
 配置方式：直接在 NoneBot 全局配置文件中添加以下配置项即可
 
-### nasa_api_key [必填]
+### apod_api_key [必填]
 
 - 类型：`str`
 - 默认值：`None`
 - 说明：用于获取每日天文一图的 NASA API Key
 
-### default_apod_send_time [选填]
+### apod_default_send_time [选填]
 
 - 类型：`str`
 - 默认值：`13:00`
