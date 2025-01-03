@@ -1,17 +1,19 @@
-import datetime
-import httpx
 import json
-import nonebot_plugin_localstore as store
+import httpx
+import datetime
 
-from nonebot import get_plugin_config, get_bot
 from nonebot.log import logger
+import nonebot_plugin_localstore as store
+from nonebot import get_plugin_config, get_bot
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_saa import Text, Image, PlatformTarget
+
 from .config import Config
 
 plugin_config = get_plugin_config(Config)
 NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 NASA_API_KEY = plugin_config.apod_api_key
+apod_cache_image = store.get_plugin_cache_file("apod_image")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
@@ -43,15 +45,23 @@ def load_task_configs():
         return []
 
 
-async def fetch_apod_data():
+async def fetch_apod_data() -> bool:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(NASA_API_URL, params={"api_key": NASA_API_KEY})
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            if data.get("media_type") == "image" and "url" in data:
+                image_url = data["url"]
+                image_response = await client.get(image_url)
+                image_response.raise_for_status()
+                apod_cache_image.write_bytes(image_response.content)
+                return True
+            else:
+                return False
     except httpx.RequestError as e:
         logger.error(f"获取 NASA 每日天文一图数据时发生错误: {e}")
-        return None
+        return False
 
 
 async def send_apod(target: PlatformTarget):
