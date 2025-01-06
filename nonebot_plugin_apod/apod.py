@@ -65,19 +65,14 @@ async def fetch_apod_data() -> bool:
 
 
 async def send_apod(target: PlatformTarget):
-    apod_data = await fetch_apod_data()
-    if apod_data:
-        title = apod_data.get("title", "NASA APOD")
-        url = apod_data.get("url")
+    apod_is_image = await fetch_apod_data()
+    if apod_is_image:
         try:
-            await Image(url).send_to(target, bot=get_bot())
-            await Text(f"链接：{url}").send_to(target, bot=get_bot())
+            await Text("今日天文一图为").send_to(target, bot=get_bot())
+            await Image(str(apod_cache_image)).send_to(target, bot=get_bot())
         except Exception as e:
             logger.error(f"发送 NASA 每日天文一图时发生错误：{e}")
             await Text("发送 NASA 每日天文一图时发生错误").send_to(target, bot=get_bot())
-    else:
-        logger.error("无法获取今天的天文图片")
-        await Text("无法获取今天的天文图片。").send_to(target, bot=get_bot())
 
 
 def schedule_apod_task(send_time: str, target: PlatformTarget):
