@@ -73,6 +73,8 @@ async def send_apod(target: PlatformTarget):
         except Exception as e:
             logger.error(f"发送 NASA 每日天文一图时发生错误：{e}")
             await Text("发送 NASA 每日天文一图时发生错误").send_to(target, bot=get_bot())
+    else:
+        await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
 
 
 def schedule_apod_task(send_time: str, target: PlatformTarget):
