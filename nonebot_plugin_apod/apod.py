@@ -126,3 +126,12 @@ try:
     logger.debug("已恢复所有 NASA 每日天文一图定时任务")
 except Exception as e:
     logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
+
+
+@scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
+async def clear_apod_cache():
+    if apod_cache_image.exists():
+        apod_cache_image.unlink()
+        logger.debug("apod缓存图片已清除")
+    else:
+        logger.debug("apod缓存图片不存在")
