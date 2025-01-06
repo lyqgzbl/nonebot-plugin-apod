@@ -77,7 +77,7 @@ apod = on_alconna(
             example="/今日天文一图",
         ),
     ),
-		rule=is_enable(),
+    rule=is_enable(),
     use_cmd_start=True,
 )
 
