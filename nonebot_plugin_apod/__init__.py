@@ -35,7 +35,7 @@ __plugin_meta__ = PluginMetadata(
 
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
-apod_cache_image = store.get_plugin_cache_file("apod_image")
+apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 if not plugin_config.apod_api_key:
     logger.opt(colors=True).warning("<yellow>缺失必要配置项 'nasa_api_key'，已禁用该插件</yellow>")
@@ -94,16 +94,18 @@ def is_valid_time_format(time_str: str) -> bool:
 
 @apod.handle()
 async def apod_handle():
-    if not apod_cache_image.exists():
-        is_image = await fetch_apod_data()
-    else:
-        is_image = True
-    if is_image and apod_cache_image.exists():
+    if not apod_cache_json.exists():
+        success = await fetch_apod_data()
+        if not success:
+            await apod.finish("获取今日天文一图失败请稍后再试")
+    data = json.loads(apod_cache_json.read_text())
+    if data.get("media_type") == "image" and "url" in data:
+        image_url = data["url"]
         try:
-            await UniMessage.text("今日天文一图为").image(raw=apod_cache_image.read_bytes()).send(reply_to=True)
+            await UniMessage.text("今日天文一图为").image(url=image_url).send(reply_to=True)
         except Exception as e:
             logger.error(f"发送天文一图时发生错误：{e}")
-            await apod.finish("发送今日天文一图失败，请稍后再试")
+            await apod.finish("发送今日天文一图失败")
     else:
         await apod.finish("今日 NASA 提供的为天文视频")
 

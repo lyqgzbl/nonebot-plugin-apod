@@ -13,7 +13,7 @@ from .config import Config
 plugin_config = get_plugin_config(Config)
 NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 NASA_API_KEY = plugin_config.apod_api_key
-apod_cache_image = store.get_plugin_cache_file("apod_image")
+apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
@@ -45,34 +45,27 @@ def load_task_configs():
         return []
 
 
-async def fetch_apod_data() -> bool:
+async def fetch_apod_data():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(NASA_API_URL, params={"api_key": NASA_API_KEY})
             response.raise_for_status()
             data = response.json()
-            if data.get("media_type") == "image" and "url" in data:
-                image_url = data["url"]
-                image_response = await client.get(image_url)
-                image_response.raise_for_status()
-                apod_cache_image.write_bytes(image_response.content)
-                return True
-            else:
-                return False
+            apod_cache_json.write_text(json.dumps(data, indent=4))
+            return
     except httpx.RequestError as e:
         logger.error(f"获取 NASA 每日天文一图数据时发生错误: {e}")
-        return False
 
 
 async def send_apod(target: PlatformTarget):
-    apod_is_image = await fetch_apod_data()
-    if apod_is_image:
-        try:
-            await Text("今日天文一图为").send_to(target, bot=get_bot())
-            await Image(str(apod_cache_image)).send_to(target, bot=get_bot())
-        except Exception as e:
-            logger.error(f"发送 NASA 每日天文一图时发生错误：{e}")
-            await Text("发送 NASA 每日天文一图时发生错误").send_to(target, bot=get_bot())
+    if not apod_cache_json.exists() and not await fetch_apod_data():
+        await Text("获取到今日的天文一图失败").send_to(target, bot=get_bot())
+        return
+    data = json.loads(apod_cache_json.read_text())
+    if data.get("media_type") == "image" and "url" in data:
+        url = data["url"]
+        await Text("今日天文一图为").send_to(target, bot=get_bot())
+        await Image(url).send_to(target, bot=get_bot())
     else:
         await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
 
@@ -130,8 +123,8 @@ except Exception as e:
 
 @scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
 async def clear_apod_cache():
-    if apod_cache_image.exists():
-        apod_cache_image.unlink()
-        logger.debug("apod缓存图片已清除")
+    if apod_cache_json.exists():
+        apod_cache_json.unlink()
+        logger.debug("apod缓存已清除")
     else:
-        logger.debug("apod缓存图片不存在")
+        logger.debug("apod缓存不存在")
