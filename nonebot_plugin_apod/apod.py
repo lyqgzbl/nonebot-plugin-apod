@@ -52,15 +52,18 @@ async def fetch_apod_data():
             response.raise_for_status()
             data = response.json()
             apod_cache_json.write_text(json.dumps(data, indent=4))
-            return
+            return True
     except httpx.RequestError as e:
         logger.error(f"获取 NASA 每日天文一图数据时发生错误: {e}")
+        return False
 
 
 async def send_apod(target: PlatformTarget):
-    if not apod_cache_json.exists() and not await fetch_apod_data():
-        await Text("获取到今日的天文一图失败").send_to(target, bot=get_bot())
-        return
+    if not apod_cache_json.exists():
+        success = await fetch_apod_data()
+        if not success:
+            await Text("未能获取到今日的天文一图，请稍后再试。").send_to(target, bot=get_bot())
+            return
     data = json.loads(apod_cache_json.read_text())
     if data.get("media_type") == "image" and "url" in data:
         url = data["url"]
