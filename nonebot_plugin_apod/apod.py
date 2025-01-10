@@ -6,7 +6,7 @@ from nonebot.log import logger
 import nonebot_plugin_localstore as store
 from nonebot import get_plugin_config, get_bot
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_saa import Text, Image, PlatformTarget
+from nonebot_plugin_saa import Text, Image, PlatformTarget, MessageFactory
 
 from .config import Config
 
@@ -67,8 +67,7 @@ async def send_apod(target: PlatformTarget):
     data = json.loads(apod_cache_json.read_text())
     if data.get("media_type") == "image" and "url" in data:
         url = data["url"]
-        await Text("今日天文一图为").send_to(target, bot=get_bot())
-        await Image(url).send_to(target, bot=get_bot())
+        await MessageFactory([Text("今日天文一图为"), Image(url)]).send_to(target, bot=get_bot())
     else:
         await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
 
