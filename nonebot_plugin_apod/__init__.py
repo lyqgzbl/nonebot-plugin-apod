@@ -11,13 +11,14 @@ require("nonebot_plugin_saa")
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
 require("nonebot_plugin_apscheduler")
+require("nonebot_plugin_htmlrender")
 import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna, UniMessage
-from nonebot_plugin_saa import Text, Image, SaaTarget, enable_auto_select_bot, PlatformTarget, get_target
+from nonebot_plugin_saa import SaaTarget, enable_auto_select_bot, PlatformTarget, get_target
 
 from .config import Config
-from .apod import send_apod, remove_apod_task, schedule_apod_task, fetch_apod_data
+from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image
 
 
 __plugin_meta__ = PluginMetadata(
@@ -35,10 +36,11 @@ __plugin_meta__ = PluginMetadata(
 
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
+apod_is_reply_image = plugin_config.apod_reply_is_iamge
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 if not plugin_config.apod_api_key:
-    logger.opt(colors=True).warning("<yellow>缺失必要配置项 'nasa_api_key'，已禁用该插件</yellow>")
+    logger.opt(colors=True).warning("<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>")
 def is_enable() -> Rule:
     def _rule() -> bool:
         return bool(plugin_config.apod_api_key)
@@ -99,7 +101,18 @@ async def apod_handle():
         if not success:
             await apod.finish("获取今日天文一图失败请稍后再试")
     data = json.loads(apod_cache_json.read_text())
-    if data.get("media_type") == "image" and "url" in data:
+    if apod_is_reply_image:
+        send_image = await generate_apod_image()
+        if not send_image:
+            await apod.finish("发送今日天文一图失败")
+        else:
+            try:
+                await UniMessage.image(raw=send_image).send(reply_to=True)
+            except Exception as e:
+                logger.error(f"发送天文一图时发生错误：{e}")
+                await apod.finish("发送今日天文一图失败")
+                return
+    elif data.get("media_type") == "image" and "url" in data:
         image_url = data["url"]
         try:
             await UniMessage.text("今日天文一图为").image(url=image_url).send(reply_to=True)
