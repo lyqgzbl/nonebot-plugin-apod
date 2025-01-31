@@ -40,6 +40,9 @@ pip install nonebot-plugin-apod
 命令选项`关闭` 关闭定时任务  
 命令选项`开启` 开启定时任务  
 
+使用命令`今日天文一图`获取今日天文一图  
+[此命令无需用户为[SuperUsers](https://nonebot.dev/docs/appendices/config#superusers)]
+
 ## 配置项
 
 配置方式：直接在 NoneBot 全局配置文件中添加以下配置项即可
@@ -55,3 +58,9 @@ pip install nonebot-plugin-apod
 - 类型：`str`
 - 默认值：`13:00`
 - 说明：每日天文一图的默认发送时间
+
+### apod_reply_is_image [选填]
+
+- 类型：`bool`
+- 默认值：`True`
+- 说明：是否将今日天文一图完整信息构造为图片
