@@ -64,3 +64,21 @@ pip install nonebot-plugin-apod
 - 类型：`bool`
 - 默认值：`True`
 - 说明：是否将今日天文一图完整信息构造为图片
+
+### apod_baidu_trans [选填]
+
+- 类型：`bool`
+- 默认值：`False`
+- 说明：是否使用[百度翻译](https://fanyi-api.baidu.com/)将天文一图描述翻译为中文
+
+### apod_baidu_trans_appid [选填]
+
+- 类型：`int`
+- 默认值：`None`
+- 说明：百度翻译 APP ID
+
+### apod_baidu_trans_api_key [选填]
+
+- 类型：`str`
+- 默认值：`None`
+- 说明：百度翻译 密钥
