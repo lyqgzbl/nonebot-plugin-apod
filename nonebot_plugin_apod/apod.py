@@ -1,7 +1,8 @@
 import json
-import httpx
+import random
+import hashlib
 
-from pathlib import Path
+import httpx
 from nonebot.log import logger
 import nonebot_plugin_localstore as store
 from nonebot import get_plugin_config, get_bot
@@ -13,10 +14,12 @@ from .config import Config
 
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
+baidu_trans = plugin_config.apod_baidu_trans
 NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 apod_is_reply_image = plugin_config.apod_reply_is_iamge
 baidu_trans_appid = plugin_config.apod_baidu_trans_appid
-baidu_trans_api_key = plugin_config.apod_baidi_trans_api_key
+baidu_trans_api_key = plugin_config.apod_baidu_trans_api_key
+BAIDU_API_URL = "http://api.fanyi.baidu.com/api/trans/vip/translate"
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
@@ -122,22 +125,54 @@ def remove_apod_task(target: PlatformTarget):
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
-def apod_json_to_md(apod_json):
-    """将 APOD JSON 数据转换为 Markdown"""
+async def translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_trans_appid, api_key=baidu_trans_api_key):
+    try:
+        salt = random.randint(32768, 65536)
+        sign = hashlib.md5(f"{appid}{query}{salt}{api_key}".encode()).hexdigest()
+        payload = {
+            "appid": appid,
+            "q": query,
+            "from": from_lang,
+            "to": to_lang,
+            "salt": salt,
+            "sign": sign,
+        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(BAIDU_API_URL, data=payload, headers=headers)
+            result_all = response.text
+            result = json.loads(result_all)
+            if "trans_result" in result:
+                return "\n".join([item["dst"] for item in result["trans_result"]])
+            else:
+                return f"Error: {result.get("error_msg", '未知错误')}"
+    except Exception as e:
+        logger.error(f"翻译时发生错误：{e}")
+        return f"Exception occurred: {str(e)}"
+
+
+async def apod_json_to_md(apod_json):
+    title = apod_json["title"]
+    explanation = apod_json["explanation"]
+    url = apod_json["url"]
+    copyright = apod_json.get("copyright", "无")
+    date = apod_json["date"]
+    if baidu_trans:
+        explanation = await translate_text(explanation)
     return f"""<h1 style="text-align:center;">今日天文一图</h1>
 
-<h2 style="text-align:center;">{apod_json["title"]}</h2>
+<h2 style="text-align:center;">{title}</h2>
 
 <div style="text-align:center;">
-    <img src="{apod_json["url"]}" alt="APOD" style="max-width:100%; height:auto;">
+    <img src="{url}" alt="APOD" style="max-width:100%; height:auto;">
 </div>
 
-<p style="text-align:center;">{apod_json["explanation"]}</p>
+<p style="text-align:center;">{explanation}</p>
 
-<p style="text-align:left;">  版权：   {apod_json.get("copyright", "无")}</p>
-<p style="text-align:left;">  日期：   {apod_json["date"]}</p>
+<p style="text-align:left;">  版权：   {copyright}</p>
+<p style="text-align:left;">  日期：   {date}</p>
 """
-    return md_template
 
 
 async def generate_apod_image():
@@ -148,7 +183,7 @@ async def generate_apod_image():
                 return None
         else:
             data = json.loads(apod_cache_json.read_text())
-        md_content = apod_json_to_md(data)
+        md_content = await apod_json_to_md(data)
         img_bytes = await md_to_pic(md_content, width=800)
         return img_bytes
     except Exception as e:
