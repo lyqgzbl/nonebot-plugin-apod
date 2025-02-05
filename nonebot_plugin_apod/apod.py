@@ -146,7 +146,7 @@ async def translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_tran
             if "trans_result" in result:
                 return "\n".join([item["dst"] for item in result["trans_result"]])
             else:
-                return f"Error: {result.get("error_msg", '未知错误')}"
+                return f"Error: {result.get('error_msg', '未知错误')}"
     except Exception as e:
         logger.error(f"翻译时发生错误：{e}")
         return f"Exception occurred: {str(e)}"
