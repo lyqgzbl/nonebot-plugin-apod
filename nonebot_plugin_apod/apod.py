@@ -72,18 +72,18 @@ async def send_apod(target: PlatformTarget):
             await Text("未能获取到今日的天文一图，请稍后再试。").send_to(target, bot=get_bot())
             return
     data = json.loads(apod_cache_json.read_text())
-    if apod_is_reply_image:
+    if data.get("media_type") == "image" and "url" in data:
+        if apod_is_reply_image:
             image = await generate_apod_image()
             if not image:
                 await Text("发送今日的天文一图失败，请稍后再试。").send_to(target, bot=get_bot())
                 return
             await Image(image).send_to(target, bot=get_bot())
-    else:
-        if data.get("media_type") == "image" and "url" in data:
+        else:
             url = data["url"]
             await MessageFactory([Text("今日天文一图为"), Image(url)]).send_to(target, bot=get_bot())
-        else:
-            await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
+    else:
+        await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
 
 
 def schedule_apod_task(send_time: str, target: PlatformTarget):
