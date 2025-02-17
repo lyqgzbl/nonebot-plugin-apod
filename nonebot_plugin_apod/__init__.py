@@ -101,24 +101,24 @@ async def apod_handle():
         if not success:
             await apod.finish("获取今日天文一图失败请稍后再试")
     data = json.loads(apod_cache_json.read_text())
-    if apod_is_reply_image:
-        send_image = await generate_apod_image()
-        if not send_image:
-            await apod.finish("发送今日天文一图失败")
+    if data.get("media_type") == "image" and "url" in data:
+        if apod_is_reply_image:
+            send_image = await generate_apod_image()
+            if not send_image:
+                await apod.finish("发送今日天文一图失败")
+            else:
+                try:
+                    await UniMessage.image(raw=send_image).send(reply_to=True)
+                except Exception as e:
+                    logger.error(f"发送天文一图时发生错误：{e}")
+                    await apod.finish("发送今日天文一图失败")
         else:
+            image_url = data["url"]
             try:
-                await UniMessage.image(raw=send_image).send(reply_to=True)
+                await UniMessage.text("今日天文一图为").image(url=image_url).send(reply_to=True)
             except Exception as e:
                 logger.error(f"发送天文一图时发生错误：{e}")
                 await apod.finish("发送今日天文一图失败")
-                return
-    elif data.get("media_type") == "image" and "url" in data:
-        image_url = data["url"]
-        try:
-            await UniMessage.text("今日天文一图为").image(url=image_url).send(reply_to=True)
-        except Exception as e:
-            logger.error(f"发送天文一图时发生错误：{e}")
-            await apod.finish("发送今日天文一图失败")
     else:
         await apod.finish("今日 NASA 提供的为天文视频")
 
