@@ -9,3 +9,6 @@ class Config(BaseModel):
     apod_baidu_trans_appid: Optional[int] = None
     apod_baidu_trans_api_key: Optional[str] = None
     apod_reply_is_iamge: bool = True
+
+
+cache_image = None

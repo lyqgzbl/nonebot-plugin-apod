@@ -17,7 +17,7 @@ from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna, UniMessage
 from nonebot_plugin_saa import SaaTarget, enable_auto_select_bot, PlatformTarget, get_target
 
-from .config import Config
+from .config import Config, cache_iamge
 from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image
 
 
@@ -33,7 +33,7 @@ __plugin_meta__ = PluginMetadata(
     ),
 )
 
-cache_image = None
+
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
 apod_is_reply_image = plugin_config.apod_reply_is_iamge
