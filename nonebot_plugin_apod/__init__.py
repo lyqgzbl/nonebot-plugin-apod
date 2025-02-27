@@ -33,7 +33,7 @@ __plugin_meta__ = PluginMetadata(
     ),
 )
 
-
+cache_image = None
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
 apod_is_reply_image = plugin_config.apod_reply_is_iamge
@@ -96,6 +96,7 @@ def is_valid_time_format(time_str: str) -> bool:
 
 @apod.handle()
 async def apod_handle():
+    global cache_image
     if not apod_cache_json.exists():
         success = await fetch_apod_data()
         if not success:
@@ -103,12 +104,13 @@ async def apod_handle():
     data = json.loads(apod_cache_json.read_text())
     if data.get("media_type") == "image" and "url" in data:
         if apod_is_reply_image:
-            send_image = await generate_apod_image()
-            if not send_image:
-                await apod.finish("发送今日天文一图失败")
+            if cache_image is None:
+                cache_image = await generate_apod_image()
+                if not cache_image:
+                    await apod.finish("发送今日天文一图失败")
             else:
                 try:
-                    await UniMessage.image(raw=send_image).send(reply_to=True)
+                    await UniMessage.image(raw=cache_image).send(reply_to=True)
                 except Exception as e:
                     logger.error(f"发送天文一图时发生错误：{e}")
                     await apod.finish("发送今日天文一图失败")

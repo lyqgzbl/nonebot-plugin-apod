@@ -10,8 +10,8 @@ from nonebot_plugin_htmlrender import md_to_pic
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_saa import Text, Image, PlatformTarget, MessageFactory
 
+from . import cache_image
 from .config import Config
-cache_image = None
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
