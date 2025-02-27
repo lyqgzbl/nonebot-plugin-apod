@@ -75,7 +75,7 @@ async def send_apod(target: PlatformTarget):
     data = json.loads(apod_cache_json.read_text())
     if data.get("media_type") == "image" and "url" in data:
         if apod_is_reply_image:
-            if cache_image if None
+            if cache_image is None:
                 cache_image = await generate_apod_image()
                 if not cache_image:
                     await Text("发送今日的天文一图失败，请稍后再试。").send_to(target, bot=get_bot())
