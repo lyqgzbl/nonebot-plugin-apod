@@ -1,4 +1,5 @@
 from typing import Optional
+from asyncio import Lock
 from pydantic import BaseModel
 
 
@@ -12,3 +13,17 @@ class Config(BaseModel):
 
 
 cache_image = None
+cache_lock = Lock()
+
+def get_cache_image():
+    return cache_image
+
+async def set_cache_image(image):
+    global cache_image
+    async with cache_lock:
+        cache_image = image
+
+async def clear_cache_image():
+    global cache_image
+    async with cache_lock:
+        cache_image = None

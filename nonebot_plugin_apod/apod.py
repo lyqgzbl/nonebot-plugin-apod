@@ -10,7 +10,7 @@ from nonebot_plugin_htmlrender import md_to_pic
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_saa import Text, Image, PlatformTarget, MessageFactory
 
-from .config import Config, cache_image
+from .config import Config, get_cache_image, set_cache_image, clear_cache_image
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
@@ -65,17 +65,18 @@ async def fetch_apod_data():
 
 
 async def send_apod(target: PlatformTarget):
-    global cache_image
     if not apod_cache_json.exists():
         success = await fetch_apod_data()
         if not success:
             await Text("未能获取到今日的天文一图，请稍后再试。").send_to(target, bot=get_bot())
             return
     data = json.loads(apod_cache_json.read_text())
+    cache_image = get_cache_image()
     if data.get("media_type") == "image" and "url" in data:
         if apod_is_reply_image:
             if cache_image is None:
                 cache_image = await generate_apod_image()
+                await set_cache_image(cache_image)
                 if not cache_image:
                     await Text("发送今日的天文一图失败，请稍后再试。").send_to(target, bot=get_bot())
                     return
@@ -206,10 +207,11 @@ except Exception as e:
 
 @scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
 async def clear_apod_cache():
-    global cache_image
     if apod_cache_json.exists():
         apod_cache_json.unlink()
         logger.debug("apod缓存已清除")
     else:
         logger.debug("apod缓存不存在")
-    cache_image = None
+    
+    await clear_cache_image()
+    logger.debug("apod图片缓存已清除")

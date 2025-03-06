@@ -17,7 +17,7 @@ from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna, UniMessage
 from nonebot_plugin_saa import SaaTarget, enable_auto_select_bot, PlatformTarget, get_target
 
-from .config import Config, cache_image
+from .config import Config, get_cache_image, set_cache_image
 from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image
 
 
@@ -96,16 +96,17 @@ def is_valid_time_format(time_str: str) -> bool:
 
 @apod.handle()
 async def apod_handle():
-    global cache_image
     if not apod_cache_json.exists():
         success = await fetch_apod_data()
         if not success:
             await apod.finish("获取今日天文一图失败请稍后再试")
     data = json.loads(apod_cache_json.read_text())
+    cache_image = get_cache_image()
     if data.get("media_type") == "image" and "url" in data:
         if apod_is_reply_image:
             if cache_image is None:
                 cache_image = await generate_apod_image()
+                await set_cache_image(cache_image)
                 if not cache_image:
                     await apod.finish("发送今日天文一图失败")
             else:
