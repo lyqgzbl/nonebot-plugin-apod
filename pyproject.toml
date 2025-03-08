@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nonebot-plugin-apod"
-version = "1.0.0"
+version = "1.0.1"
 description = "定时发送 NASA 每日提供的天文图片"
 readme = "README.md"
 authors = ["lyqgzbl <admin@lyqgzbl.com>"]
