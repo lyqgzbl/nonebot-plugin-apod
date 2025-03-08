@@ -11,6 +11,9 @@ from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_saa import Text, Image, PlatformTarget, MessageFactory
 
 from .config import Config, get_cache_image, set_cache_image, clear_cache_image
+
+
+# 加载配置
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
@@ -23,6 +26,7 @@ apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
+# 保存定时任务配置
 def save_task_configs(tasks: list):
     try:
         serialized_tasks = [
@@ -35,6 +39,7 @@ def save_task_configs(tasks: list):
         logger.error(f"保存 NASA 每日天文一图定时任务配置时发生错误：{e}")
 
 
+# 加载定时任务配置
 def load_task_configs():
     if not task_config_file.exists():
         return []
@@ -51,6 +56,7 @@ def load_task_configs():
         return []
 
 
+# 获取今日天文一图数据
 async def fetch_apod_data():
     try:
         async with httpx.AsyncClient() as client:
@@ -64,6 +70,7 @@ async def fetch_apod_data():
         return False
 
 
+# 发送今日天文一图
 async def send_apod(target: PlatformTarget):
     if not apod_cache_json.exists():
         success = await fetch_apod_data()
@@ -87,7 +94,7 @@ async def send_apod(target: PlatformTarget):
     else:
         await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
 
-
+# 设置每日天文一图定时任务
 def schedule_apod_task(send_time: str, target: PlatformTarget):
     try:
         hour, minute = map(int, send_time.split(":"))
@@ -114,6 +121,7 @@ def schedule_apod_task(send_time: str, target: PlatformTarget):
         logger.error(f"设置 NASA 每日天文一图定时任务时发生错误：{e}")
 
 
+# 移除每日天文一图定时任务
 def remove_apod_task(target: PlatformTarget):
     job_id = f"send_apod_task_{target.dict()}"
     job = scheduler.get_job(job_id)
@@ -127,6 +135,7 @@ def remove_apod_task(target: PlatformTarget):
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
+# 翻译天文一图描述
 async def translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_trans_appid, api_key=baidu_trans_api_key):
     try:
         salt = random.randint(32768, 65536)
@@ -154,6 +163,7 @@ async def translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_tran
         return f"Exception occurred: {str(e)}"
 
 
+# 将天文一图 JSON 文件转换为 Markdown
 async def apod_json_to_md(apod_json):
     title = apod_json["title"]
     explanation = apod_json["explanation"]
@@ -176,7 +186,7 @@ async def apod_json_to_md(apod_json):
 <p style="text-align:left;">  日期：   {date}</p>
 """
 
-
+# 生成天文一图图片
 async def generate_apod_image():
     try:
         if not apod_cache_json.exists():
@@ -193,6 +203,7 @@ async def generate_apod_image():
         return None
 
 
+# 恢复定时任务
 try:
     tasks = load_task_configs()
     for task in tasks:
@@ -205,6 +216,7 @@ except Exception as e:
     logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
 
 
+# 定时清除缓存
 @scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
 async def clear_apod_cache():
     if apod_cache_json.exists():

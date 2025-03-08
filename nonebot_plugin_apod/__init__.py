@@ -21,6 +21,7 @@ from .config import Config, get_cache_image, set_cache_image
 from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image
 
 
+#插件元数据
 __plugin_meta__ = PluginMetadata(
     name="每日天文一图",
     description="定时发送 NASA 每日提供的天文图片",
@@ -34,11 +35,15 @@ __plugin_meta__ = PluginMetadata(
 )
 
 
+#加载配置
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
 apod_is_reply_image = plugin_config.apod_reply_is_iamge
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
+
+
+#检查NASA API密钥是否配置
 if not plugin_config.apod_api_key:
     logger.opt(colors=True).warning("<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>")
 def is_enable() -> Rule:
@@ -47,6 +52,7 @@ def is_enable() -> Rule:
     return Rule(_rule)
 
 
+#定义指令apod
 apod_setting = on_alconna(
     Alconna(
         "apod",
@@ -71,6 +77,7 @@ apod_setting = on_alconna(
 )
 
 
+#定义指令今日天文一图
 apod = on_alconna(
     Alconna(
         "今日天文一图",
@@ -84,6 +91,7 @@ apod = on_alconna(
 )
 
 
+#检查时间格式是否正确
 def is_valid_time_format(time_str: str) -> bool:
     if not re.match(r"^\d{1,2}:\d{2}$", time_str):
         return False
@@ -94,6 +102,7 @@ def is_valid_time_format(time_str: str) -> bool:
         return False
 
 
+#处理指令今日天文一图
 @apod.handle()
 async def apod_handle():
     if not apod_cache_json.exists():
@@ -126,6 +135,7 @@ async def apod_handle():
         await apod.finish("今日 NASA 提供的为天文视频")
 
 
+#处理指令apod status
 @apod_setting.assign("status")
 async def apod_status(event):
     if not task_config_file.exists():
@@ -157,12 +167,14 @@ async def apod_status(event):
     await apod_setting.finish("NASA 每日天文一图定时任务未开启")
 
 
+#处理指令apod stop
 @apod_setting.assign("stop")
 async def apod_stop(target: SaaTarget):
     remove_apod_task(target)
     await apod_setting.finish("已关闭 NASA 每日天文一图定时任务")
 
 
+#处理指令apod start
 @apod_setting.assign("start")
 async def apod_start(send_time: Match[str], target: SaaTarget):
     if send_time.available:
