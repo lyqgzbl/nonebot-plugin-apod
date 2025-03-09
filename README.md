@@ -59,11 +59,11 @@ pip install nonebot-plugin-apod
 - 默认值：`13:00`
 - 说明：每日天文一图的默认发送时间
 
-### apod_reply_is_image [选填]
+### apod_infopuzzle [选填]
 
 - 类型：`bool`
 - 默认值：`True`
-- 说明：是否将今日天文一图完整信息构造为图片
+- 说明：是否将今日天文一图完整信息构造为信息拼图
 
 ### apod_baidu_trans [选填]
 
