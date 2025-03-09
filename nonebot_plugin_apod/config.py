@@ -9,7 +9,7 @@ class Config(BaseModel):
     apod_baidu_trans: bool = False
     apod_baidu_trans_appid: Optional[int] = None
     apod_baidu_trans_api_key: Optional[str] = None
-    apod_reply_is_iamge: bool = True
+    apod_infopuzzle: bool = True
 
 
 # 缓存天文一图图片

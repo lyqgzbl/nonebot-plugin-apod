@@ -38,7 +38,7 @@ __plugin_meta__ = PluginMetadata(
 #加载配置
 enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
-apod_is_reply_image = plugin_config.apod_reply_is_iamge
+apod_infopuzzle = plugin_config.apod_infopuzzle
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
@@ -112,7 +112,7 @@ async def apod_handle():
     data = json.loads(apod_cache_json.read_text())
     cache_image = get_cache_image()
     if data.get("media_type") == "image" and "url" in data:
-        if apod_is_reply_image:
+        if apod_infopuzzle:
             if cache_image is None:
                 cache_image = await generate_apod_image()
                 await set_cache_image(cache_image)

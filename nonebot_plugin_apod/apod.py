@@ -19,7 +19,7 @@ plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
 NASA_API_URL = "https://api.nasa.gov/planetary/apod"
-apod_is_reply_image = plugin_config.apod_reply_is_iamge
+apod_infopuzzle = plugin_config.apod_infopuzzle
 baidu_trans_appid = plugin_config.apod_baidu_trans_appid
 baidu_trans_api_key = plugin_config.apod_baidu_trans_api_key
 BAIDU_API_URL = "http://api.fanyi.baidu.com/api/trans/vip/translate"
@@ -81,7 +81,7 @@ async def send_apod(target: PlatformTarget):
     data = json.loads(apod_cache_json.read_text())
     cache_image = get_cache_image()
     if data.get("media_type") == "image" and "url" in data:
-        if apod_is_reply_image:
+        if apod_infopuzzle:
             if cache_image is None:
                 cache_image = await generate_apod_image()
                 await set_cache_image(cache_image)
