@@ -1,6 +1,7 @@
 import json
 import random
 import hashlib
+from pathlib import Path
 
 import httpx
 from nonebot.log import logger
@@ -176,18 +177,21 @@ async def apod_json_to_md(apod_json):
     date = apod_json["date"]
     if baidu_trans:
         explanation = await translate_text(explanation)
-    return f"""<h1 style="text-align:center;">今日天文一图</h1>
+    return f"""<div class="container">
+    <h1>今日天文一图</h1>
+    <h2>{title}</h2>
 
-<h2 style="text-align:center;">{title}</h2>
+    <div class="image-container">
+        <img src="{url}" alt="APOD">
+    </div>
 
-<div style="text-align:center;">
-    <img src="{url}" alt="APOD" style="max-width:100%; height:auto;">
+    <p class="explanation">{explanation}</p>
+
+    <div class="info">
+        <p><strong>版权：</strong> {copyright}</p>
+        <p><strong>日期：</strong> {date}</p>
+    </div>
 </div>
-
-<p style="text-align:center;">{explanation}</p>
-
-<p style="text-align:left;">  版权：   {copyright}</p>
-<p style="text-align:left;">  日期：   {date}</p>
 """
 
 # 生成天文一图图片
@@ -200,7 +204,7 @@ async def generate_apod_image():
         else:
             data = json.loads(apod_cache_json.read_text())
         md_content = await apod_json_to_md(data)
-        img_bytes = await md_to_pic(md_content, width=800)
+        img_bytes = await md_to_pic(md_content, width=600, css_path=str(Path(__file__).parent / "style.css"))
         return img_bytes
     except Exception as e:
         logger.error(f"生成 NASA APOD 图片时发生错误：{e}")
