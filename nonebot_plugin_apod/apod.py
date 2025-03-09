@@ -87,12 +87,16 @@ async def send_apod(target: PlatformTarget):
                 if not cache_image:
                     await Text("发送今日的天文一图失败，请稍后再试。").send_to(target, bot=get_bot())
                     return
-            await Image(cache_image).send_to(target, bot=get_bot())
+                else:
+                    await Image(cache_image).send_to(target, bot=get_bot())
+            else:
+                await Image(cache_image).send_to(target, bot=get_bot())
         else:
             url = data["url"]
             await MessageFactory([Text("今日天文一图为"), Image(url)]).send_to(target, bot=get_bot())
     else:
         await Text("今日 NASA 提供的为天文视频").send_to(target, bot=get_bot())
+
 
 # 设置每日天文一图定时任务
 def schedule_apod_task(send_time: str, target: PlatformTarget):

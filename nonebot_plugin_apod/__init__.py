@@ -118,6 +118,12 @@ async def apod_handle():
                 await set_cache_image(cache_image)
                 if not cache_image:
                     await apod.finish("发送今日天文一图失败")
+                else:
+                    try:
+                        await UniMessage.image(raw=cache_image).send(reply_to=True)
+                    except Exception as e:
+                        logger.error(f"发送天文一图时发生错误：{e}")
+                        await apod.finish("发送今日天文一图失败")
             else:
                 try:
                     await UniMessage.image(raw=cache_image).send(reply_to=True)
