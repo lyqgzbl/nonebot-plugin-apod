@@ -43,6 +43,15 @@ pip install nonebot-plugin-apod
 使用命令`今日天文一图`获取今日天文一图  
 [此命令无需用户为[SuperUsers](https://nonebot.dev/docs/appendices/config#superusers)]
 
+### 效果图
+
+<details>
+  <summary>点击展开</summary>
+
+![example](https://raw.githubusercontent.com/lyqgzbl/nonebot-plugin-apod/main/example.png)
+
+</details>
+
 ## 配置项
 
 配置方式：直接在 NoneBot 全局配置文件中添加以下配置项即可
