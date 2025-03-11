@@ -27,6 +27,13 @@ apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
+# 百度翻译配置检查
+if baidu_trans:
+    if not baidu_trans_api_key or not baidu_trans_appid:
+        logger.opt(colors=True).warning("<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>")
+        baidu_trans = False
+
+
 # 保存定时任务配置
 def save_task_configs(tasks: list):
     try:
