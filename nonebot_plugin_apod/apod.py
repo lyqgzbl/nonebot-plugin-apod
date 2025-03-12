@@ -18,20 +18,27 @@ from .config import Config, get_cache_image, set_cache_image, clear_cache_image
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
-NASA_API_URL = "https://api.nasa.gov/planetary/apod"
+deepl_trans = plugin_config.apod_deepl_trans
 apod_infopuzzle = plugin_config.apod_infopuzzle
+NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 baidu_trans_appid = plugin_config.apod_baidu_trans_appid
+DEEPL_API_URL = "https://api-free.deepl.com/v2/translate"
+deepl_trans_api_key = plugin_config.apod_deepl_trans_api_key
 baidu_trans_api_key = plugin_config.apod_baidu_trans_api_key
 BAIDU_API_URL = "http://api.fanyi.baidu.com/api/trans/vip/translate"
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
-# 百度翻译配置检查
+# 翻译配置检查
 if baidu_trans:
     if not baidu_trans_api_key or not baidu_trans_appid:
         logger.opt(colors=True).warning("<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>")
         baidu_trans = False
+if deepl_trans:
+    if not deepl_trans_api_key:
+        logger.opt(colors=True).warning("<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>")
+        deelp_trans = False
 
 
 # 保存定时任务配置
@@ -147,8 +154,8 @@ def remove_apod_task(target: PlatformTarget):
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
-# 翻译天文一图描述
-async def translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_trans_appid, api_key=baidu_trans_api_key):
+# 百度翻译天文一图描述
+async def baidu_translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_trans_appid, api_key=baidu_trans_api_key):
     try:
         salt = random.randint(32768, 65536)
         sign = hashlib.md5(f"{appid}{query}{salt}{api_key}".encode()).hexdigest()
@@ -171,7 +178,27 @@ async def translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_tran
             else:
                 return f"Error: {result.get('error_msg', '未知错误')}"
     except Exception as e:
-        logger.error(f"翻译时发生错误：{e}")
+        logger.error(f"百度 翻译时发生错误：{e}")
+        return f"Exception occurred: {str(e)}"
+
+
+# DeepL 翻译天文一图描述
+async def deepl_translate_text(text: str, target_lang: str = "ZH", api_key=deepl_trans_api_key):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                DEEPL_API_URL,
+                data={
+                    "text": text,
+                    "target_lang": target_lang,
+                    "auth_key": api_key,
+                },
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["translations"][0]["text"]
+    except Exception as e:
+        logger.error(f"DeepL 翻译时发生错误：{e}")
         return f"Exception occurred: {str(e)}"
 
 
@@ -182,8 +209,10 @@ async def apod_json_to_md(apod_json):
     url = apod_json["url"]
     copyright = apod_json.get("copyright", "无")
     date = apod_json["date"]
-    if baidu_trans:
-        explanation = await translate_text(explanation)
+    if deepl_trans:
+        explanation = await deepl_translate_text(explanation)
+    elif baidu_trans:
+        explanation = await baidu_translate_text(explanation)
     return f"""<div class="container">
     <h1>今日天文一图</h1>
     <h2>{title}</h2>
