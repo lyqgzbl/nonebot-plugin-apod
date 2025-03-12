@@ -91,3 +91,15 @@ pip install nonebot-plugin-apod
 - 类型：`str`
 - 默认值：`None`
 - 说明：百度翻译 密钥
+
+### apod_deepl_trans [选填]
+
+- 类型：`bool`
+- 默认值：`False`
+- 说明：是否使用[DeepL 翻译](https://www.deepl.com/zh/products/api/)将天文一图描述翻译为中文
+
+### apod_deepl_trans_api_key [选填]
+
+- 类型：`str`
+- 默认值：`None`
+- 说明：DeepL 翻译 密钥
