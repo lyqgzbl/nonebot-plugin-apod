@@ -18,7 +18,7 @@ _✨ 每日天文一图 ✨_
 ![PyPI](https://img.shields.io/pypi/v/nonebot-plugin-apod.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)  
 [![NoneBot Registry](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin%2Fnonebot-plugin-apod)](https://registry.nonebot.dev/plugin/nonebot-plugin-apod:nonebot_plugin_apod)
-[![Supported Adapters](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin-adapters%2Fnonebot-plugin-send-anything-anywhere)](https://registry.nonebot.dev/plugin/nonebot-plugin-send-anything-anywhere:nonebot_plugin_saa)
+[![Supported Adapters](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin-adapters%2Fnonebot-plugin-alconna)](https://registry.nonebot.dev/plugin/nonebot-plugin-alconna:nonebot_plugin_alconna)
 
 </div>
 
@@ -60,7 +60,7 @@ pip install nonebot-plugin-apod
 
 - 类型：`str`
 - 默认值：`None`
-- 说明：用于获取每日天文一图的 NASA API Key
+- 说明：用于获取每日天文一图的 [NASA API Key](https://api.nasa.gov/)
 
 ### apod_default_send_time [选填]
 
