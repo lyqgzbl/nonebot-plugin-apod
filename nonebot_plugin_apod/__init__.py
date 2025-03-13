@@ -1,24 +1,22 @@
 import re
 import json
 
-from nonebot import require, get_plugin_config
 from nonebot.rule import Rule
 from nonebot.log import logger
 from nonebot.permission import SUPERUSER
+from nonebot import require, get_plugin_config
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
-require("nonebot_plugin_saa")
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
-require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_htmlrender")
+require("nonebot_plugin_apscheduler")
 import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna, UniMessage
-from nonebot_plugin_saa import SaaTarget, enable_auto_select_bot, PlatformTarget, get_target
-
+from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
+from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
 from .config import Config, get_cache_image, set_cache_image
-from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image
+from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image, generate_job_id
 
 
 #插件元数据
@@ -29,18 +27,15 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/lyqgzbl/nonebot-plugin-apod",
     config=Config,
-    supported_adapters=inherit_supported_adapters(
-		"nonebot_plugin_alconna", "nonebot_plugin_saa"
-    ),
+    supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
 )
 
 
 #加载配置
-enable_auto_select_bot()
 plugin_config = get_plugin_config(Config)
 apod_infopuzzle = plugin_config.apod_infopuzzle
 apod_cache_json = store.get_plugin_cache_file("apod.json")
-task_config_file = store.get_plugin_data_file("apod_task_config.json")
+task_config_file = store.get_plugin_data_file("apod_task_config_v2.json")
 
 
 #检查NASA API密钥是否配置
@@ -143,7 +138,7 @@ async def apod_handle():
 
 #处理指令apod status
 @apod_setting.assign("status")
-async def apod_status(event):
+async def apod_status(event, target: MsgTarget):
     if not task_config_file.exists():
         await apod_setting.finish("NASA 每日天文一图定时任务未开启")
     try:
@@ -154,13 +149,13 @@ async def apod_status(event):
         await apod_setting.finish(f"加载任务配置时发生错误：{e}")
     if not tasks:
         await apod_setting.finish("NASA 每日天文一图定时任务未开启")
-    current_target = get_target(event)
+    current_target = target
     for task in tasks:
         target_data = task["target"]
-        target = PlatformTarget.deserialize(target_data)
+        target = Target.load(target_data)
         if target == current_target:
             send_time = task["send_time"]
-            job_id = f"send_apod_task_{target.dict()}"
+            job_id = generate_job_id(target)
             job = scheduler.get_job(job_id)
             if job:
                 next_run = (
@@ -175,14 +170,14 @@ async def apod_status(event):
 
 #处理指令apod stop
 @apod_setting.assign("stop")
-async def apod_stop(target: SaaTarget):
+async def apod_stop(target: MsgTarget):
     remove_apod_task(target)
     await apod_setting.finish("已关闭 NASA 每日天文一图定时任务")
 
 
 #处理指令apod start
 @apod_setting.assign("start")
-async def apod_start(send_time: Match[str], target: SaaTarget):
+async def apod_start(send_time: Match[str], target: MsgTarget):
     if send_time.available:
         time = send_time.result
         if not is_valid_time_format(time):
