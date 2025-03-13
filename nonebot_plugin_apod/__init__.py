@@ -36,7 +36,7 @@ __plugin_meta__ = PluginMetadata(
 plugin_config = get_plugin_config(Config)
 apod_infopuzzle = plugin_config.apod_infopuzzle
 apod_cache_json = store.get_plugin_cache_file("apod.json")
-task_config_file = store.get_plugin_data_file("apod_task_config_v2.json")
+task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
 #检查NASA API密钥是否配置
@@ -153,8 +153,8 @@ async def apod_status(event, target: MsgTarget):
     current_target = target
     for task in tasks:
         target_data = task["target"]
-        target = Target.load(target_data)
-        if target == current_target:
+        data_target = Target.load(target_data)
+        if data_target == current_target:
             send_time = task["send_time"]
             job_id = generate_job_id(target)
             job = scheduler.get_job(job_id)
