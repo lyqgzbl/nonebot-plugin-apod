@@ -1,14 +1,11 @@
 import json
-import random
 import hashlib
-from pathlib import Path
 
 import httpx
 from nonebot.log import logger
-from nonebot import get_plugin_config
 import nonebot_plugin_localstore as store
-from nonebot_plugin_htmlrender import md_to_pic
 from nonebot_plugin_apscheduler import scheduler
+from nonebot import get_plugin_config, get_bot, get_bots
 from nonebot_plugin_alconna.uniseg import MsgTarget, Target, UniMessage
 
 from .infopuzzle import generate_apod_image
@@ -88,10 +85,17 @@ async def fetch_apod_data():
 
 # 发送今日天文一图
 async def send_apod(target: MsgTarget):
+    logger.debug(f"主动发送目标： {target}")
+    bots = get_bots()
+    if target.self_id and target.self_id in bots:
+        bot = get_bot(target.self_id)
+    else:
+        logger.warning("<yellow>未找到可用的机器人实例, 此任务将被跳过</yellow>")
+        return
     if not apod_cache_json.exists():
         success = await fetch_apod_data()
         if not success:
-            await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(target=target)
+            await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(target=target, bot=bot)
             return
     data = json.loads(apod_cache_json.read_text())
     cache_image = get_cache_image()
@@ -101,17 +105,17 @@ async def send_apod(target: MsgTarget):
                 cache_image = await generate_apod_image()
                 await set_cache_image(cache_image)
                 if not cache_image:
-                    await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(target=target)
+                    await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(target=target, bot=bot)
                     return
                 else:
-                    await UniMessage.image(raw=cache_image).send(target=target)
+                    await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
             else:
-                await UniMessage.image(raw=cache_image).send(target=target)
+                await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
         else:
             url = data["url"]
-            await UniMessage.text("今日天文一图为").image(url=url).send(target=target)
+            await UniMessage.text("今日天文一图为").image(url=url).send(target=target, bot=bot)
     else:
-        await UniMessage.text("今日 NASA 提供的为天文视频").send(target=target)
+        await UniMessage.text("今日 NASA 提供的为天文视频").send(target=target, bot=bot)
 
 
 # 设置每日天文一图定时任务
