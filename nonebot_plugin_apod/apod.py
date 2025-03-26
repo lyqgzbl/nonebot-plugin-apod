@@ -85,37 +85,29 @@ async def fetch_apod_data():
 
 # 发送今日天文一图
 async def send_apod(target: MsgTarget):
-    logger.debug(f"主动发送目标： {target}")
+    logger.debug(f"主动发送目标: {target}")
     bots = get_bots()
-    if target.self_id and target.self_id in bots:
+    if target.self_id in bots:
         bot = get_bot(target.self_id)
     else:
-        logger.warning("<yellow>未找到可用的机器人实例, 此任务将被跳过</yellow>")
+        logger.warning("<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>")
         return
-    if not apod_cache_json.exists():
-        success = await fetch_apod_data()
-        if not success:
-            await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(target=target, bot=bot)
-            return
+    if not apod_cache_json.exists() and not await fetch_apod_data():
+        await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(target=target, bot=bot)
+        return
     data = json.loads(apod_cache_json.read_text())
-    cache_image = get_cache_image()
-    if data.get("media_type") == "image" and "url" in data:
-        if apod_infopuzzle:
-            if cache_image is None:
-                cache_image = await generate_apod_image()
-                await set_cache_image(cache_image)
-                if not cache_image:
-                    await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(target=target, bot=bot)
-                    return
-                else:
-                    await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
-            else:
-                await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
-        else:
-            url = data["url"]
-            await UniMessage.text("今日天文一图为").image(url=url).send(target=target, bot=bot)
-    else:
+    if data.get("media_type") != "image" or "url" not in data:
         await UniMessage.text("今日 NASA 提供的为天文视频").send(target=target, bot=bot)
+        return
+    if apod_infopuzzle:
+        cache_image = get_cache_image() or await generate_apod_image()
+        if cache_image:
+            await set_cache_image(cache_image)
+            await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
+        else:
+            await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(target=target, bot=bot)
+    else:
+        await UniMessage.text("今日天文一图为").image(url=data["url"]).send(target=target, bot=bot)
 
 
 # 设置每日天文一图定时任务
@@ -180,6 +172,5 @@ async def clear_apod_cache():
         logger.debug("apod缓存已清除")
     else:
         logger.debug("apod缓存不存在")
-    
     await clear_cache_image()
     logger.debug("apod图片缓存已清除")

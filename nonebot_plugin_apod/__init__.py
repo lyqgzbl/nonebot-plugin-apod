@@ -101,40 +101,20 @@ def is_valid_time_format(time_str: str) -> bool:
 #处理指令今日天文一图
 @apod.handle()
 async def apod_handle():
-    if not apod_cache_json.exists():
-        success = await fetch_apod_data()
-        if not success:
-            await apod.finish("获取今日天文一图失败请稍后再试")
+    if not apod_cache_json.exists() and not await fetch_apod_data():
+        await apod.finish("获取今日天文一图失败请稍后再试")
     data = json.loads(apod_cache_json.read_text())
-    cache_image = get_cache_image()
-    if data.get("media_type") == "image" and "url" in data:
-        if apod_infopuzzle:
-            if cache_image is None:
-                cache_image = await generate_apod_image()
-                await set_cache_image(cache_image)
-                if not cache_image:
-                    await apod.finish("发送今日天文一图失败")
-                else:
-                    try:
-                        await UniMessage.image(raw=cache_image).send(reply_to=True)
-                    except Exception as e:
-                        logger.error(f"发送天文一图时发生错误：{e}")
-                        await apod.finish("发送今日天文一图失败")
-            else:
-                try:
-                    await UniMessage.image(raw=cache_image).send(reply_to=True)
-                except Exception as e:
-                    logger.error(f"发送天文一图时发生错误：{e}")
-                    await apod.finish("发送今日天文一图失败")
-        else:
-            image_url = data["url"]
-            try:
-                await UniMessage.text("今日天文一图为").image(url=image_url).send(reply_to=True)
-            except Exception as e:
-                logger.error(f"发送天文一图时发生错误：{e}")
-                await apod.finish("发送今日天文一图失败")
-    else:
+    if data.get("media_type") != "image" or "url" not in data:
         await apod.finish("今日 NASA 提供的为天文视频")
+    if apod_infopuzzle:
+        cache_image = get_cache_image() or await generate_apod_image()
+        if cache_image:
+            await set_cache_image(cache_image)
+            await UniMessage.image(raw=cache_image).send(reply_to=True)
+        else:
+            await apod.finish("发送今日的天文一图失败")
+    else:
+        await UniMessage.text("今日天文一图为").image(url=data["url"]).send(reply_to=True)
 
 
 #处理指令apod status
