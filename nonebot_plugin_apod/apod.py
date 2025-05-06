@@ -154,12 +154,15 @@ def remove_apod_task(target: MsgTarget):
 # 恢复定时任务
 try:
     tasks = load_task_configs()
-    for task in tasks:
-        send_time = task["send_time"]
-        target = task["target"]
-        if send_time and target:
-            schedule_apod_task(send_time, target)
-    logger.debug("已恢复所有 NASA 每日天文一图定时任务")
+    if tasks:
+        for task in tasks:
+            send_time = task["send_time"]
+            target = task["target"]
+            if send_time and target:
+                schedule_apod_task(send_time, target)
+        logger.debug("已恢复所有 NASA 每日天文一图定时任务")
+    else:
+        logger.debug("没有找到任何 NASA 每日天文一图定时任务配置")
 except Exception as e:
     logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
 
