@@ -1,0 +1,49 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Microsoft Yahei", "Noto Sans", sans-serif, monospace;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #2c2c2c;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+h1, h2 {
+    text-align: center;
+}
+
+.image-container {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.image-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid #4a4a4a;
+}
+
+.explanation {
+    text-align: left;
+    font-size: 1.1em;
+    margin: 0;
+}
+
+.info {
+    text-align: left;
+    font-size: 0.9em;
+    color: #a0a0a0;
+}
+
+.info p {
+    margin: 5px 0;
+}

@@ -10,6 +10,7 @@ class Config(BaseModel):
     apod_baidu_trans_appid: Optional[int] = None
     apod_baidu_trans_api_key: Optional[str] = None
     apod_infopuzzle: bool = True
+    apod_infopuzzle_dark_mode: bool = False
     apod_deepl_trans: bool = False
     apod_deepl_trans_api_key: Optional[str] = None
 

@@ -16,6 +16,7 @@ from .config import Config
 plugin_config = get_plugin_config(Config)
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
+infopuzzle_mode = plugin_config.apod_infopuzzle_dark_mode
 baidu_trans_appid = plugin_config.apod_baidu_trans_appid
 DEEPL_API_URL = "https://api-free.deepl.com/v2/translate"
 deepl_trans_api_key = plugin_config.apod_deepl_trans_api_key
@@ -126,7 +127,10 @@ async def generate_apod_image():
         else:
             data = json.loads(apod_cache_json.read_text())
         md_content = await apod_json_to_md(data)
-        img_bytes = await md_to_pic(md_content, width=600, css_path=str(Path(__file__).parent / "style.css"))
+        css_file = (
+                Path(__file__).parent / "css" / ("dark.css" if infopuzzle_mode else "light.css")
+            )
+        img_bytes = await md_to_pic(md_content, width=600, css_path=str(css_file))
         return img_bytes
     except Exception as e:
         logger.error(f"生成 NASA APOD 图片时发生错误：{e}")
