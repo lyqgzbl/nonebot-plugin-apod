@@ -74,6 +74,12 @@ pip install nonebot-plugin-apod
 - 默认值：`True`
 - 说明：是否将今日天文一图完整信息构造为信息拼图
 
+### apod_infopuzzle_dark_mode [选填]
+
+- 类型：`bool`
+- 默认值：`False`
+- 说明: 是否启用信息拼图的深色模式
+
 ### apod_baidu_trans [选填]
 
 - 类型：`bool`
