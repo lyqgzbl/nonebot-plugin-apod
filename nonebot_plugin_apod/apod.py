@@ -83,6 +83,19 @@ async def fetch_apod_data():
         return False
 
 
+async def fetch_randomly_apod_data():
+    try:
+        async with httpx.AsyncClient() as client:
+            params = {"api_key": nasa_api_key, "count": 1}
+            response = await client.get(NASA_API_URL, params=params)
+            response.raise_for_status()
+            data_list = response.json()
+            return data_list[0] if data_list else None
+    except (httpx.HTTPStatusError, httpx.RequestError, json.JSONDecodeError, IndexError) as e:
+        logger.error(f"获取 NASA APOD 数据时发生错误: {e}")
+        return None
+
+
 # 发送今日天文一图
 async def send_apod(target: MsgTarget):
     logger.debug(f"主动发送目标: {target}")
@@ -92,7 +105,7 @@ async def send_apod(target: MsgTarget):
     else:
         logger.warning("<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>")
         return
-    if not apod_cache_json.exists() and not await fetch_apod_data():
+    if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
         await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(target=target, bot=bot)
         return
     data = json.loads(apod_cache_json.read_text())

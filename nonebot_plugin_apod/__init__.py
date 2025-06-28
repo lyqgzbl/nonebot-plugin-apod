@@ -17,7 +17,7 @@ from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on
 from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
 
 from .config import Config, get_cache_image, set_cache_image
-from .apod import remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image, generate_job_id
+from .apod import fetch_randomly_apod_data, remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image, generate_job_id, fetch_randomly_apod_data
 
 
 #插件元数据
@@ -74,12 +74,26 @@ apod_setting = on_alconna(
 
 
 #定义指令今日天文一图
-apod = on_alconna(
+apod_command = on_alconna(
     Alconna(
         "今日天文一图",
         meta=CommandMeta(
             description="获取今日天文一图",
             example="/今日天文一图",
+        ),
+    ),
+    rule=is_enable(),
+    use_cmd_start=True,
+)
+
+
+randomly_apod_command = on_alconna(
+    Alconna(
+        "随机天文一图",
+        meta=CommandMeta(
+            compact=True,
+            description="获取随机天文一图",
+            example="/随机天文一图",
         ),
     ),
     rule=is_enable(),
@@ -99,20 +113,20 @@ def is_valid_time_format(time_str: str) -> bool:
 
 
 #处理指令今日天文一图
-@apod.handle()
-async def apod_handle():
-    if not apod_cache_json.exists() and not await fetch_apod_data():
-        await apod.finish("获取今日天文一图失败请稍后再试")
+@apod_command.handle()
+async def apod_command_handle():
+    if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
+        await apod_command.finish("获取今日天文一图失败请稍后再试")
     data = json.loads(apod_cache_json.read_text())
     if data.get("media_type") != "image" or "url" not in data:
-        await apod.finish("今日 NASA 提供的为天文视频")
+        await apod_command.finish("今日 NASA 提供的为天文视频")
     if apod_infopuzzle:
         cache_image = get_cache_image() or await generate_apod_image()
         if cache_image:
             await set_cache_image(cache_image)
             await UniMessage.image(raw=cache_image).send(reply_to=True)
         else:
-            await apod.finish("发送今日的天文一图失败")
+            await apod_command.finish("发送今日的天文一图失败")
     else:
         await UniMessage.text("今日天文一图为").image(url=data["url"]).send(reply_to=True)
 
@@ -173,3 +187,14 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
         default_time = plugin_config.apod_default_send_time
         schedule_apod_task(default_time, target)
         await apod_setting.finish(f"已开启 NASA 每日天文一图定时任务,默认发送时间为 {default_time}")
+
+
+@randomly_apod_command.handle()
+async def reandomly_apod_command_handle():
+    data = await fetch_randomly_apod_data()
+    if not data:
+        await randomly_apod_command.finish("获取随机天文一图失败，请稍后再试。")
+    if data.get("media_type") != "image" or "url" not in data:
+        await apod_command.finish("随机到了天文视频")
+    else:
+        await UniMessage.image(url=data["url"]).send(reply_to=True)
