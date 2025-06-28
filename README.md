@@ -40,8 +40,10 @@ pip install nonebot-plugin-apod
 命令选项`关闭` 关闭定时任务  
 命令选项`开启` 开启定时任务  
 
+[以下命令无需用户为[SuperUsers](https://nonebot.dev/docs/appendices/config#superusers)]
 使用命令`今日天文一图`获取今日天文一图  
-[此命令无需用户为[SuperUsers](https://nonebot.dev/docs/appendices/config#superusers)]
+使用命令`随机天文一图`随机获得天文一图  
+
 
 ### 效果图
 
