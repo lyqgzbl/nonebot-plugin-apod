@@ -7,14 +7,18 @@ from nonebot.permission import SUPERUSER
 from nonebot import require, get_plugin_config
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
+require("nonebot_plugin_argot")
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
 require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_apscheduler")
+from nonebot_plugin_argot import Image
 import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
+from nonebot_plugin_argot.extension import ArgotExtension
 from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
+from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
+
 
 from .config import Config, get_cache_image, set_cache_image
 from .apod import fetch_randomly_apod_data, remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image, generate_job_id, fetch_randomly_apod_data
@@ -84,6 +88,7 @@ apod_command = on_alconna(
     ),
     rule=is_enable(),
     use_cmd_start=True,
+    extensions=[ArgotExtension()],
 )
 
 
@@ -124,11 +129,19 @@ async def apod_command_handle():
         cache_image = get_cache_image() or await generate_apod_image()
         if cache_image:
             await set_cache_image(cache_image)
-            await UniMessage.image(raw=cache_image).send(reply_to=True)
+            await UniMessage.image(raw=cache_image).send(
+                reply_to=True,
+                argot={
+                    "name": "background",
+                    "segment": Image(url=data["url"]),
+                    "command": "原图",
+                    "expired_at": 360,
+                }
+            )
         else:
             await apod_command.finish("发送今日的天文一图失败")
     else:
-        await UniMessage.text("今日天文一图为").image(url=data["url"]).send(reply_to=True)
+        await UniMessage.text("今日天文一图为").image(url=data["url"]).finish(reply_to=True)
 
 
 #处理指令apod status

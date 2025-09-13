@@ -47,7 +47,6 @@ def save_task_configs(tasks: list):
         ]
         with task_config_file.open("w", encoding="utf-8") as f:
             json.dump({"tasks": serialized_tasks}, f, ensure_ascii=False, indent=4)
-        logger.info("NASA 每日天文一图定时任务配置已保存")
     except Exception as e:
         logger.error(f"保存 NASA 每日天文一图定时任务配置时发生错误：{e}")
 
