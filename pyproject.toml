@@ -14,9 +14,10 @@ keywords = ["nonebot2", "NASA"]
 python = "^3.8"
 nonebot2 = "^2.2.1"
 httpx = ">=0.28.0, <1.0.0"
+nonebot-plugin-argot >= "0.1.7"
 nonebot-plugin-localstore = "^0.7.0"
 nonebot-plugin-apscheduler = "^0.5.0"
-nonebot-plugin-alconna = ">=0.54.0, <1.0.0"
+nonebot-plugin-alconna = ">=0.57.1, <1.0.0"
 nonebot-plugin-htmlrender = ">=0.5.0, <1.0.0"
 
 
