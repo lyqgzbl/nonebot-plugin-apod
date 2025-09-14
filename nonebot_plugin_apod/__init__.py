@@ -12,8 +12,8 @@ require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
 require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_apscheduler")
-from nonebot_plugin_argot import Image
 import nonebot_plugin_localstore as store
+from nonebot_plugin_argot import Image, Text
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_argot.extension import ArgotExtension
 from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
@@ -21,6 +21,7 @@ from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on
 
 
 from .config import Config, get_cache_image, set_cache_image
+from .infopuzzle import deepl_translate_text, baidu_translate_text
 from .apod import fetch_randomly_apod_data, remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image, generate_job_id, fetch_randomly_apod_data
 
 
@@ -38,6 +39,8 @@ __plugin_meta__ = PluginMetadata(
 
 #加载配置
 plugin_config = get_plugin_config(Config)
+baidu_trans = plugin_config.apod_baidu_trans
+deepl_trans = plugin_config.apod_deepl_trans
 apod_infopuzzle = plugin_config.apod_infopuzzle
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
@@ -105,6 +108,7 @@ randomly_apod_command = on_alconna(
     ),
     rule=is_enable(),
     use_cmd_start=True,
+    extensions=[ArgotExtension()],
 )
 
 
@@ -213,4 +217,17 @@ async def reandomly_apod_command_handle():
     if data.get("media_type") != "image" or "url" not in data:
         await apod_command.finish("随机到了天文视频")
     else:
-        await UniMessage.image(url=data["url"]).send(reply_to=True)
+        explanation=data["explanation"]
+        if deepl_trans:
+            explanation = await deepl_translate_text(explanation)
+        elif baidu_trans:
+            explanation = await baidu_translate_text(explanation)
+        await UniMessage.image(url=data["url"]).send(
+            reply_to=True,
+            argot={
+                "name": "explanation",
+                "segment": Text(explanation),
+                "command": "简介",
+                "expired_at": 360,
+            }
+        )
