@@ -83,7 +83,9 @@ apod_command = on_alconna(
         "今日天文一图",
         meta=CommandMeta(
             description="获取今日天文一图",
-            example="/今日天文一图",
+            example=(
+                "/今日天文一图"
+            ),
         ),
     ),
     rule=is_enable(),
@@ -129,11 +131,12 @@ async def apod_command_handle():
         cache_image = get_cache_image() or await generate_apod_image()
         if cache_image:
             await set_cache_image(cache_image)
+            url = data["hdurl"] if plugin_config.apod_hd_image else data["url"]
             await UniMessage.image(raw=cache_image).send(
                 reply_to=True,
                 argot={
                     "name": "background",
-                    "segment": Image(url=data["url"]),
+                    "segment": Image(url=url),
                     "command": "原图",
                     "expired_at": 360,
                 }
