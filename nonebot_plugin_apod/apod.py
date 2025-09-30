@@ -1,15 +1,17 @@
 import json
 import hashlib
+from datetime import timedelta
 
 import httpx
 from nonebot.log import logger
 import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
 from nonebot import get_plugin_config, get_bot, get_bots
+from nonebot_plugin_argot import Text, Image, add_argot, get_message_id
 from nonebot_plugin_alconna.uniseg import MsgTarget, Target, UniMessage
 
-from .infopuzzle import generate_apod_image
 from .config import Config, get_cache_image, set_cache_image, clear_cache_image
+from .infopuzzle import generate_apod_image, deepl_translate_text, baidu_translate_text
 
 
 # 加载配置
@@ -115,11 +117,30 @@ async def send_apod(target: MsgTarget):
         cache_image = get_cache_image() or await generate_apod_image()
         if cache_image:
             await set_cache_image(cache_image)
-            await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
+            message = await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
+            await add_argot(
+                message_id=get_message_id(message) or "",
+                name="infopuzzle_background",
+                command="原图",
+                segment=Image(url=data["url"]),
+                expired_at=timedelta(minutes=2),
+            )
         else:
             await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(target=target, bot=bot)
     else:
-        await UniMessage.text("今日天文一图为").image(url=data["url"]).send(target=target, bot=bot)
+        explanation=data["explanation"]
+        if deepl_trans:
+            explanation = await deepl_translate_text(explanation)
+        elif baidu_trans:
+            explanation = await baidu_translate_text(explanation)
+        message = await UniMessage.text("今日天文一图为").image(url=data["url"]).send(target=target, bot=bot)
+        await add_argot(
+        message_id=get_message_id(message) or "",
+        name="explanation",
+        command="简介",
+        segment=Text(explanation),
+        expired_at=timedelta(minutes=2),
+    )
 
 
 # 设置每日天文一图定时任务
