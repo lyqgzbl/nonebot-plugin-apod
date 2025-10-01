@@ -34,6 +34,10 @@ __plugin_meta__ = PluginMetadata(
     homepage="https://github.com/lyqgzbl/nonebot-plugin-apod",
     config=Config,
     supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
+    extra={
+        "author": "lyqgzbl <admin@lyqgzbl.com>",
+        "version": "1.0.6",
+    },
 )
 
 
@@ -148,7 +152,20 @@ async def apod_command_handle():
         else:
             await apod_command.finish("发送今日的天文一图失败")
     else:
-        await UniMessage.text("今日天文一图为").image(url=data["url"]).finish(reply_to=True)
+        explanation=data["explanation"]
+        if deepl_trans:
+            explanation = await deepl_translate_text(explanation)
+        elif baidu_trans:
+            explanation = await baidu_translate_text(explanation)
+        await UniMessage.text("今日天文一图为").image(url=data["url"]).finish(
+            reply_to=True,
+            argot={
+                "name": "explanation",
+                "segment": Text(explanation),
+                "command": "简介",
+                "expired_at": 360,
+            },
+        )
 
 
 #处理指令apod status
@@ -229,5 +246,5 @@ async def reandomly_apod_command_handle():
                 "segment": Text(explanation),
                 "command": "简介",
                 "expired_at": 360,
-            }
+            },
         )
