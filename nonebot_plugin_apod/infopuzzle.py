@@ -37,7 +37,13 @@ if deepl_trans:
 
 
 # 百度翻译天文一图描述
-async def baidu_translate_text(query, from_lang="auto", to_lang="zh", appid=baidu_trans_appid, api_key=baidu_trans_api_key):
+async def baidu_translate_text(
+        query,
+        from_lang="auto",
+        to_lang="zh",
+        appid=baidu_trans_appid,
+        api_key=baidu_trans_api_key,
+    ):
     try:
         salt = random.randint(32768, 65536)
         sign = hashlib.md5(f"{appid}{query}{salt}{api_key}".encode()).hexdigest()
@@ -65,7 +71,11 @@ async def baidu_translate_text(query, from_lang="auto", to_lang="zh", appid=baid
 
 
 # DeepL 翻译天文一图描述
-async def deepl_translate_text(text: str, target_lang: str = "ZH", api_key=deepl_trans_api_key):
+async def deepl_translate_text(
+        text: str,
+        target_lang: str = "ZH",
+        api_key=deepl_trans_api_key,
+    ) -> str:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -128,7 +138,9 @@ async def generate_apod_image():
             data = json.loads(apod_cache_json.read_text())
         md_content = await apod_json_to_md(data)
         css_file = (
-                Path(__file__).parent / "css" / ("dark.css" if infopuzzle_mode else "light.css")
+                Path(__file__).parent
+                / "css"
+                / ("dark.css" if infopuzzle_mode else "light.css")
             )
         img_bytes = await md_to_pic(md_content, width=600, css_path=str(css_file))
         return img_bytes

@@ -92,7 +92,12 @@ async def fetch_randomly_apod_data():
             response.raise_for_status()
             data_list = response.json()
             return data_list[0] if data_list else None
-    except (httpx.HTTPStatusError, httpx.RequestError, json.JSONDecodeError, IndexError) as e:
+    except (
+        httpx.HTTPStatusError,
+        httpx.RequestError,
+        json.JSONDecodeError,
+        IndexError
+    ) as e:
         logger.error(f"获取 NASA APOD 数据时发生错误: {e}")
         return None
 
@@ -107,7 +112,10 @@ async def send_apod(target: MsgTarget):
         logger.warning("<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>")
         return
     if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
-        await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(target=target, bot=bot)
+        await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(
+            target=target,
+            bot=bot,
+        )
         return
     data = json.loads(apod_cache_json.read_text())
     if data.get("media_type") != "image" or "url" not in data:
@@ -117,7 +125,10 @@ async def send_apod(target: MsgTarget):
         cache_image = get_cache_image() or await generate_apod_image()
         if cache_image:
             await set_cache_image(cache_image)
-            message = await UniMessage.image(raw=cache_image).send(target=target, bot=bot)
+            message = await UniMessage.image(raw=cache_image).send(
+                target=target,
+                bot=bot,
+            )
             await add_argot(
                 message_id=get_message_id(message) or "",
                 name="infopuzzle_background",
@@ -126,14 +137,20 @@ async def send_apod(target: MsgTarget):
                 expired_at=timedelta(minutes=2),
             )
         else:
-            await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(target=target, bot=bot)
+            await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(
+                target=target,
+                bot=bot,
+            )
     else:
         explanation=data["explanation"]
         if deepl_trans:
             explanation = await deepl_translate_text(explanation)
         elif baidu_trans:
             explanation = await baidu_translate_text(explanation)
-        message = await UniMessage.text("今日天文一图为").image(url=data["url"]).send(target=target, bot=bot)
+        message = await UniMessage.text("今日天文一图为").image(url=data["url"]).send(
+            target=target,
+            bot=bot,
+        )
         await add_argot(
         message_id=get_message_id(message) or "",
         name="explanation",
@@ -158,7 +175,10 @@ def schedule_apod_task(send_time: str, target: MsgTarget):
             max_instances=1,
             replace_existing=True,
         )
-        logger.info(f"已成功设置 NASA 每日天文一图定时任务，发送时间为 {send_time} (目标: {target})")
+        logger.info(
+            "已成功设置 NASA 每日天文一图定时任务,"
+            f"发送时间为 {send_time} (目标: {target})"
+        )
         tasks = load_task_configs()
         tasks = [task for task in tasks if task["target"] != target]
         tasks.append({"send_time": send_time, "target": target})

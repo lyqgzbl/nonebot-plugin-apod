@@ -22,7 +22,14 @@ from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on
 
 from .config import Config, get_cache_image, set_cache_image
 from .infopuzzle import deepl_translate_text, baidu_translate_text
-from .apod import fetch_randomly_apod_data, remove_apod_task, schedule_apod_task, fetch_apod_data, generate_apod_image, generate_job_id, fetch_randomly_apod_data
+from .apod import (
+    fetch_randomly_apod_data,
+    remove_apod_task,
+    schedule_apod_task,
+    fetch_apod_data,
+    generate_apod_image,
+    generate_job_id,
+)
 
 
 #插件元数据
@@ -52,7 +59,9 @@ task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 #检查NASA API密钥是否配置
 if not plugin_config.apod_api_key:
-    logger.opt(colors=True).warning("<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>")
+    logger.opt(colors=True).warning(
+        "<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>"
+    )
 def is_enable() -> Rule:
     def _rule() -> bool:
         return bool(plugin_config.apod_api_key)
@@ -186,7 +195,6 @@ async def apod_status(event, target: MsgTarget):
         target_data = task["target"]
         data_target = Target.load(target_data)
         if data_target == current_target:
-            send_time = task["send_time"]
             job_id = generate_job_id(target)
             job = scheduler.get_job(job_id)
             if job:
@@ -194,7 +202,9 @@ async def apod_status(event, target: MsgTarget):
                     job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
                     if job.next_run_time else "未知"
                 )
-                await apod_setting.finish(f"NASA 每日天文一图定时任务已开启 | 下次发送时间: {next_run}")
+                await apod_setting.finish(
+                    f"NASA 每日天文一图定时任务已开启 | 下次发送时间: {next_run}"
+                )
             else:
                 await apod_setting.finish("NASA 每日天文一图定时任务未开启")
     await apod_setting.finish("NASA 每日天文一图定时任务未开启")
@@ -216,14 +226,18 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
             await apod_setting.send("时间格式不正确,请使用 HH:MM 格式")
         try:
             schedule_apod_task(time, target)
-            await apod_setting.send(f"已开启 NASA 每日天文一图定时任务,发送时间为 {time}")
+            await apod_setting.send(
+                f"已开启 NASA 每日天文一图定时任务,发送时间为 {time}"
+            )
         except Exception as e:
             logger.error(f"设置 NASA 每日天文一图定时任务时发生错误:{e}")
             await apod_setting.finish("设置 NASA 每日天文一图定时任务时发生错误")
     else:
         default_time = plugin_config.apod_default_send_time
         schedule_apod_task(default_time, target)
-        await apod_setting.finish(f"已开启 NASA 每日天文一图定时任务,默认发送时间为 {default_time}")
+        await apod_setting.finish(
+            f"已开启 NASA 每日天文一图定时任务,默认发送时间为 {default_time}"
+        )
 
 
 @randomly_apod_command.handle()

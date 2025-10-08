@@ -1,19 +1,18 @@
-from typing import Optional
 from asyncio import Lock
 from pydantic import BaseModel
 
 
 class Config(BaseModel):
-    apod_api_key: Optional[str] = None
+    apod_api_key: str | None = None
     apod_default_send_time: str = "13:00"
     apod_hd_image: bool = False
     apod_baidu_trans: bool = False
-    apod_baidu_trans_appid: Optional[int] = None
-    apod_baidu_trans_api_key: Optional[str] = None
+    apod_baidu_trans_appid: int | None = None
+    apod_baidu_trans_api_key: str | None = None
     apod_infopuzzle: bool = True
     apod_infopuzzle_dark_mode: bool = False
     apod_deepl_trans: bool = False
-    apod_deepl_trans_api_key: Optional[str] = None
+    apod_deepl_trans_api_key: str | None = None
 
 
 # 缓存天文一图图片
