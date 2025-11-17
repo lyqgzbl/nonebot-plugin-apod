@@ -22,13 +22,6 @@ _✨ 每日天文一图 ✨_
 
 </div>
 
-<div style="border: 2px solid #f44336; background-color: #ffe6e6; color: #b71c1c; padding: 12px 16px; border-radius: 6px; font-weight: bold;">
-⚠ 警告：由于美国联邦政府资金中断，NASA 暂停更新 APOD 网站。插件已经无法获取最新图片<br>
-<em>原文：Due to the lapse in federal government funding, NASA is not updating this website. We sincerely regret this inconvenience.</em><br>
-🔗 <a href="https://apod.nasa.gov/apod/astropix.html" style="color:#b71c1c; text-decoration: underline;">访问 APOD 官方页面</a>
-</div>
-
-
 ## 安装
 使用nb-cli [推荐]
 ```shell
