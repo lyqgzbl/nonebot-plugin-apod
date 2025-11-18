@@ -14,7 +14,6 @@ from .config import Config, get_cache_image, set_cache_image, clear_cache_image
 from .infopuzzle import generate_apod_image, deepl_translate_text, baidu_translate_text
 
 
-# 加载配置
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
@@ -30,14 +29,12 @@ apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
-# 生成任务 ID
 def generate_job_id(target: MsgTarget) -> str:
     serialized_target = json.dumps(Target.dump(target), sort_keys=True)
     job_id = hashlib.md5(serialized_target.encode()).hexdigest()
     return f"send_apod_task_{job_id}"
 
 
-# 保存定时任务配置
 def save_task_configs(tasks: list):
     try:
         serialized_tasks = [
@@ -53,7 +50,6 @@ def save_task_configs(tasks: list):
         logger.error(f"保存 NASA 每日天文一图定时任务配置时发生错误：{e}")
 
 
-# 加载定时任务配置
 def load_task_configs():
     if not task_config_file.exists():
         return []
@@ -70,7 +66,6 @@ def load_task_configs():
         return []
 
 
-# 获取今日天文一图数据
 async def fetch_apod_data():
     try:
         async with httpx.AsyncClient() as client:
@@ -84,25 +79,34 @@ async def fetch_apod_data():
         return False
 
 
-async def fetch_randomly_apod_data():
+async def fetch_apod_data_by_date(date: str):
     try:
         async with httpx.AsyncClient() as client:
-            params = {"api_key": nasa_api_key, "count": 1}
-            response = await client.get(NASA_API_URL, params=params)
-            response.raise_for_status()
-            data_list = response.json()
-            return data_list[0] if data_list else None
-    except (
-        httpx.HTTPStatusError,
-        httpx.RequestError,
-        json.JSONDecodeError,
-        IndexError
-    ) as e:
-        logger.error(f"获取 NASA APOD 数据时发生错误: {e}")
+            response = await client.get(
+                NASA_API_URL,
+                params={"api_key": nasa_api_key, "date": date},
+            )
+            data = response.json()
+            return data
+    except httpx.RequestError as e:
+        logger.error(f"获取 NASA 指定日期天文一图数据时发生错误: {e}")
         return None
 
 
-# 发送今日天文一图
+async def fetch_randomly_apod_data():
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                NASA_API_URL,
+                params={"api_key": nasa_api_key, "count": 1},
+            )
+            data = response.json()
+            return data
+    except httpx.RequestError as e:
+        logger.error(f"获取 NASA 随机天文一图数据时发生错误: {e}")
+        return None
+
+
 async def send_apod(target: MsgTarget):
     logger.debug(f"主动发送目标: {target}")
     bots = get_bots()
@@ -160,7 +164,6 @@ async def send_apod(target: MsgTarget):
     )
 
 
-# 设置每日天文一图定时任务
 def schedule_apod_task(send_time: str, target: MsgTarget):
     try:
         hour, minute = map(int, send_time.split(":"))
@@ -190,7 +193,6 @@ def schedule_apod_task(send_time: str, target: MsgTarget):
         logger.error(f"设置 NASA 每日天文一图定时任务时发生错误：{e}")
 
 
-# 移除每日天文一图定时任务
 def remove_apod_task(target: MsgTarget):
     job_id = generate_job_id(target)
     job = scheduler.get_job(job_id)
@@ -204,7 +206,6 @@ def remove_apod_task(target: MsgTarget):
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
-# 恢复定时任务
 try:
     tasks = load_task_configs()
     if tasks:
@@ -220,7 +221,6 @@ except Exception as e:
     logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
 
 
-# 定时清除缓存
 @scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
 async def clear_apod_cache():
     if apod_cache_json.exists():

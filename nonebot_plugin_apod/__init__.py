@@ -1,5 +1,6 @@
 import re
 import json
+from datetime import datetime
 
 from nonebot.rule import Rule
 from nonebot.log import logger
@@ -23,16 +24,16 @@ from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on
 from .config import Config, get_cache_image, set_cache_image
 from .infopuzzle import deepl_translate_text, baidu_translate_text
 from .apod import (
-    fetch_randomly_apod_data,
+    fetch_apod_data,
+    generate_job_id,
     remove_apod_task,
     schedule_apod_task,
-    fetch_apod_data,
     generate_apod_image,
-    generate_job_id,
+    fetch_apod_data_by_date,
+    fetch_randomly_apod_data,
 )
 
 
-#插件元数据
 __plugin_meta__ = PluginMetadata(
     name="每日天文一图",
     description="定时发送 NASA 每日提供的天文图片",
@@ -48,7 +49,6 @@ __plugin_meta__ = PluginMetadata(
 )
 
 
-#加载配置
 plugin_config = get_plugin_config(Config)
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
@@ -57,7 +57,6 @@ apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
-#检查NASA API密钥是否配置
 if not plugin_config.apod_api_key:
     logger.opt(colors=True).warning(
         "<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>"
@@ -68,7 +67,6 @@ def is_enable() -> Rule:
     return Rule(_rule)
 
 
-#定义指令apod
 apod_setting = on_alconna(
     Alconna(
         "apod",
@@ -86,14 +84,15 @@ apod_setting = on_alconna(
             ),
         ),
     ),
+    block=True,
+    priority=10,
     rule=is_enable(),
     aliases={"APOD"},
-    permission=SUPERUSER,
     use_cmd_start=True,
+    permission=SUPERUSER,
 )
 
 
-#定义指令今日天文一图
 apod_command = on_alconna(
     Alconna(
         "今日天文一图",
@@ -104,6 +103,8 @@ apod_command = on_alconna(
             ),
         ),
     ),
+    block=True,
+    priority=10,
     rule=is_enable(),
     use_cmd_start=True,
     extensions=[ArgotExtension()],
@@ -119,13 +120,33 @@ randomly_apod_command = on_alconna(
             example="/随机天文一图",
         ),
     ),
+    block=True,
+    priority=10,
     rule=is_enable(),
     use_cmd_start=True,
     extensions=[ArgotExtension()],
 )
 
 
-#检查时间格式是否正确
+date_apod_command = on_alconna(
+    Alconna(
+        "指定日期天文一图",
+        Args["date#指定日期，格式为YYYY-MM-DD", str],
+        meta=CommandMeta(
+            compact=True,
+            description="获取指定日期天文一图",
+            usage="/指定日期天文一图 <YYYY-MM-DD>",
+            example="/指定日期天文一图 2023-10-01",
+        ),
+    ),
+    block=True,
+    priority=10,
+    rule=is_enable(),
+    use_cmd_start=True,
+    extensions=[ArgotExtension()],
+)
+
+
 def is_valid_time_format(time_str: str) -> bool:
     if not re.match(r"^\d{1,2}:\d{2}$", time_str):
         return False
@@ -136,7 +157,14 @@ def is_valid_time_format(time_str: str) -> bool:
         return False
 
 
-#处理指令今日天文一图
+def is_valid_date_format(date_str: str) -> bool:
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return d > datetime(1995, 6, 16)
+
+
 @apod_command.handle()
 async def apod_command_handle():
     if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
@@ -177,7 +205,6 @@ async def apod_command_handle():
         )
 
 
-#处理指令apod status
 @apod_setting.assign("status")
 async def apod_status(event, target: MsgTarget):
     if not task_config_file.exists():
@@ -210,14 +237,12 @@ async def apod_status(event, target: MsgTarget):
     await apod_setting.finish("NASA 每日天文一图定时任务未开启")
 
 
-#处理指令apod stop
 @apod_setting.assign("stop")
 async def apod_stop(target: MsgTarget):
     remove_apod_task(target)
     await apod_setting.finish("已关闭 NASA 每日天文一图定时任务")
 
 
-#处理指令apod start
 @apod_setting.assign("start")
 async def apod_start(send_time: Match[str], target: MsgTarget):
     if send_time.available:
@@ -244,7 +269,7 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
 async def reandomly_apod_command_handle():
     data = await fetch_randomly_apod_data()
     if not data:
-        await randomly_apod_command.finish("获取随机天文一图失败，请稍后再试。")
+        await randomly_apod_command.finish("获取随机天文一图失败,请稍后再试。")
     if data.get("media_type") != "image" or "url" not in data:
         await apod_command.finish("随机到了天文视频")
     else:
@@ -256,8 +281,36 @@ async def reandomly_apod_command_handle():
         await UniMessage.image(url=data["url"]).send(
             reply_to=True,
             argot={
-                "name": "explanation",
+                "name": "randomly_apod_explanation",
                 "segment": Text(explanation),
+                "command": "简介",
+                "expired_at": 360,
+            },
+        )
+
+
+@date_apod_command.handle()
+async def date_apod_command_handle(date: str):
+    if not is_valid_date_format(date):
+        await date_apod_command.finish("日期格式不正确," \
+        "请使用 YYYY-MM-DD 格式," \
+        "且日期需要在 1995-06-16 之后")
+    data = await fetch_apod_data_by_date(date=date)
+    if not data:
+        await date_apod_command.finish("获取指定日期天文一图失败,请稍后再试。")
+    if data.get("media_type") != "image" or "url" not in data:
+        await apod_command.finish("指定日期的天文一图为视频")
+    else:
+        exolanation=data["explanation"]
+        if deepl_trans:
+            exolanation = await deepl_translate_text(exolanation)
+        elif baidu_trans:
+            exolanation = await baidu_translate_text(exolanation)
+        await UniMessage.image(url=data["url"]).send(
+            reply_to=True,
+            argot={
+                "name": "date_apod_explanation",
+                "segment": Text(exolanation),
                 "command": "简介",
                 "expired_at": 360,
             },
