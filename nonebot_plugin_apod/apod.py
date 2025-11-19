@@ -12,8 +12,8 @@ from nonebot_plugin_argot import Text, Image, add_argot, get_message_id
 from nonebot_plugin_alconna.uniseg import MsgTarget, Target, UniMessage
 
 from .infopuzzle import generate_apod_image
+from .utils import fetch_apod_data, translate_text_auto
 from .config import Config, get_cache_image, set_cache_image, clear_cache_image
-from .utils import fetch_apod_data, baidu_translate_text, deepl_translate_text
 
 
 driver = get_driver()
@@ -111,7 +111,7 @@ async def send_apod(target: MsgTarget):
     if target.self_id in bots:
         bot = get_bot(target.self_id)
     else:
-        logger.warning("<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>")
+        logger.opt(colors=True).warning("<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>")
         return
     if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
         await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(
@@ -146,11 +146,8 @@ async def send_apod(target: MsgTarget):
                 bot=bot,
             )
     else:
-        explanation=data["explanation"]
-        if deepl_trans:
-            explanation = await deepl_translate_text(explanation)
-        elif baidu_trans:
-            explanation = await baidu_translate_text(explanation)
+        explanation = data["explanation"]
+        explanation = await translate_text_auto(explanation)
         message = await UniMessage.text("今日天文一图为").image(url=data["url"]).send(
             target=target,
             bot=bot,
@@ -223,10 +220,13 @@ async def restore_apod_tasks():
 
 @scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
 async def clear_apod_cache():
-    if apod_cache_json.exists():
-        apod_cache_json.unlink()
-        logger.debug("apod缓存已清除")
-    else:
-        logger.debug("apod缓存不存在")
-    await clear_cache_image()
-    logger.debug("apod图片缓存已清除")
+    try:
+        if apod_cache_json.exists():
+            apod_cache_json.unlink()
+            logger.debug("apod 缓存 JSON 已清除")
+        else:
+            logger.debug("apod 缓存 JSON 不存在")
+        await clear_cache_image()
+        logger.debug("apod 图片缓存已清除")
+    except Exception as e:
+        logger.error(f"清除 apod 缓存时发生错误：{e}")

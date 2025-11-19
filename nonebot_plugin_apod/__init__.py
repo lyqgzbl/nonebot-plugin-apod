@@ -16,7 +16,7 @@ import nonebot_plugin_localstore as store
 from nonebot_plugin_argot import Image, Text
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_argot.extension import ArgotExtension
-from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
+from nonebot_plugin_alconna.uniseg import UniMessage, MsgTarget
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
 
 from .config import Config, get_cache_image, set_cache_image
@@ -31,6 +31,7 @@ from .apod import (
     fetch_apod_data,
     generate_job_id,
     remove_apod_task,
+    load_task_configs,
     schedule_apod_task,
     generate_apod_image,
 )
@@ -53,6 +54,7 @@ __plugin_meta__ = PluginMetadata(
 
 plugin_config = get_plugin_config(Config)
 apod_infopuzzle = plugin_config.apod_infopuzzle
+default_time = plugin_config.apod_default_send_time
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
@@ -173,8 +175,8 @@ async def apod_command_handle():
         else:
             await apod_command.finish("发送今日的天文一图失败")
     else:
-        explanation=data["explanation"]
-        explanation=translate_text_auto(explanation)
+        explanation = data["explanation"]
+        explanation = await translate_text_auto(explanation)
         await UniMessage.text("今日天文一图为").image(url=data["url"]).finish(
             reply_to=True,
             argot={
@@ -188,13 +190,8 @@ async def apod_command_handle():
 
 @apod_setting.assign("status")
 async def apod_status(target: MsgTarget):
-    if not task_config_file.exists():
-        await apod_setting.finish("NASA 每日天文一图定时任务未开启")
     try:
-        async with aiofiles.open(str(task_config_file), encoding="utf-8") as f:
-            content = await f.read()
-            config = json.loads(content)
-        tasks = config.get("tasks", [])
+        tasks = await load_task_configs(locked=True)
     except Exception as e:
         await apod_setting.finish(f"加载任务配置时发生错误：{e}")
     if not tasks:
@@ -202,8 +199,7 @@ async def apod_status(target: MsgTarget):
     current_target = target
     for task in tasks:
         target_data = task["target"]
-        data_target = Target.load(target_data)
-        if data_target == current_target:
+        if target_data == current_target:
             job_id = generate_job_id(target)
             job = scheduler.get_job(job_id)
             if job:
@@ -240,7 +236,6 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
             logger.error(f"设置 NASA 每日天文一图定时任务时发生错误:{e}")
             await apod_setting.finish("设置 NASA 每日天文一图定时任务时发生错误")
     else:
-        default_time = plugin_config.apod_default_send_time
         await schedule_apod_task(default_time, target)
         await apod_setting.finish(
             f"已开启 NASA 每日天文一图定时任务,默认发送时间为 {default_time}"
@@ -255,8 +250,8 @@ async def randomly_apod_command_handle():
     if data.get("media_type") != "image" or "url" not in data:
         await apod_command.finish("随机到了天文视频")
     else:
-        explanation=data["explanation"]
-        explanation=translate_text_auto(explanation)
+        explanation = data["explanation"]
+        explanation = await translate_text_auto(explanation)
         await UniMessage.image(url=data["url"]).send(
             reply_to=True,
             argot={
@@ -280,8 +275,8 @@ async def date_apod_command_handle(date: str):
     if data.get("media_type") != "image" or "url" not in data:
         await apod_command.finish("指定日期的天文一图为视频")
     else:
-        explanation=data["explanation"]
-        explanation=translate_text_auto(explanation)
+        explanation = data["explanation"]
+        explanation = await translate_text_auto(explanation)
         await UniMessage.image(url=data["url"]).send(
             reply_to=True,
             argot={
