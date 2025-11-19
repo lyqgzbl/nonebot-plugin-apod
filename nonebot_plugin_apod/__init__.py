@@ -2,6 +2,7 @@ import re
 import json
 from datetime import datetime
 
+import aiofiles
 from nonebot.rule import Rule
 from nonebot.log import logger
 from nonebot.permission import SUPERUSER
@@ -19,7 +20,6 @@ from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_argot.extension import ArgotExtension
 from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
-
 
 from .config import Config, get_cache_image, set_cache_image
 from .infopuzzle import deepl_translate_text, baidu_translate_text
@@ -206,12 +206,13 @@ async def apod_command_handle():
 
 
 @apod_setting.assign("status")
-async def apod_status(event, target: MsgTarget):
+async def apod_status(target: MsgTarget):
     if not task_config_file.exists():
         await apod_setting.finish("NASA 每日天文一图定时任务未开启")
     try:
-        with task_config_file.open("r", encoding="utf-8") as f:
-            config = json.load(f)
+        async with aiofiles.open(str(task_config_file), encoding="utf-8") as f:
+            content = await f.read()
+            config = json.loads(content)
         tasks = config.get("tasks", [])
     except Exception as e:
         await apod_setting.finish(f"加载任务配置时发生错误：{e}")
@@ -239,7 +240,7 @@ async def apod_status(event, target: MsgTarget):
 
 @apod_setting.assign("stop")
 async def apod_stop(target: MsgTarget):
-    remove_apod_task(target)
+    await remove_apod_task(target)
     await apod_setting.finish("已关闭 NASA 每日天文一图定时任务")
 
 
@@ -250,7 +251,7 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
         if not is_valid_time_format(time):
             await apod_setting.send("时间格式不正确,请使用 HH:MM 格式")
         try:
-            schedule_apod_task(time, target)
+            await schedule_apod_task(time, target)
             await apod_setting.send(
                 f"已开启 NASA 每日天文一图定时任务,发送时间为 {time}"
             )
@@ -259,7 +260,7 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
             await apod_setting.finish("设置 NASA 每日天文一图定时任务时发生错误")
     else:
         default_time = plugin_config.apod_default_send_time
-        schedule_apod_task(default_time, target)
+        await schedule_apod_task(default_time, target)
         await apod_setting.finish(
             f"已开启 NASA 每日天文一图定时任务,默认发送时间为 {default_time}"
         )

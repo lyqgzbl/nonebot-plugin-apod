@@ -3,10 +3,11 @@ import hashlib
 from datetime import timedelta
 
 import httpx
+import aiofiles
 from nonebot.log import logger
 import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
-from nonebot import get_plugin_config, get_bot, get_bots
+from nonebot import get_plugin_config, get_bot, get_bots, get_driver
 from nonebot_plugin_argot import Text, Image, add_argot, get_message_id
 from nonebot_plugin_alconna.uniseg import MsgTarget, Target, UniMessage
 
@@ -14,6 +15,7 @@ from .config import Config, get_cache_image, set_cache_image, clear_cache_image
 from .infopuzzle import generate_apod_image, deepl_translate_text, baidu_translate_text
 
 
+driver = get_driver()
 plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
@@ -35,7 +37,7 @@ def generate_job_id(target: MsgTarget) -> str:
     return f"send_apod_task_{job_id}"
 
 
-def save_task_configs(tasks: list):
+async def save_task_configs(tasks: list):
     try:
         serialized_tasks = [
             {
@@ -44,18 +46,24 @@ def save_task_configs(tasks: list):
             }
             for task in tasks
         ]
-        with task_config_file.open("w", encoding="utf-8") as f:
-            json.dump({"tasks": serialized_tasks}, f, ensure_ascii=False, indent=4)
+        async with aiofiles.open(str(task_config_file), "w", encoding="utf-8") as f:
+            await f.write(json.dumps(
+                {"tasks": serialized_tasks},
+                ensure_ascii=False,
+                indent=4
+                )
+            )
     except Exception as e:
         logger.error(f"保存 NASA 每日天文一图定时任务配置时发生错误：{e}")
 
 
-def load_task_configs():
+async def load_task_configs():
     if not task_config_file.exists():
         return []
     try:
-        with task_config_file.open("r", encoding="utf-8") as f:
-            config = json.load(f)
+        async with aiofiles.open(str(task_config_file), encoding="utf-8") as f:
+            content = await f.read()
+            config = json.loads(content)
         tasks = [
             {"send_time": task["send_time"], "target": Target.load(task["target"])}
             for task in config.get("tasks", [])
@@ -164,7 +172,7 @@ async def send_apod(target: MsgTarget):
     )
 
 
-def schedule_apod_task(send_time: str, target: MsgTarget):
+async def schedule_apod_task(send_time: str, target: MsgTarget):
     try:
         hour, minute = map(int, send_time.split(":"))
         job_id = generate_job_id(target)
@@ -182,10 +190,10 @@ def schedule_apod_task(send_time: str, target: MsgTarget):
             "已成功设置 NASA 每日天文一图定时任务,"
             f"发送时间为 {send_time} (目标: {target})"
         )
-        tasks = load_task_configs()
+        tasks = await load_task_configs()
         tasks = [task for task in tasks if task["target"] != target]
         tasks.append({"send_time": send_time, "target": target})
-        save_task_configs(tasks)
+        await save_task_configs(tasks)
     except ValueError:
         logger.error(f"时间格式错误：{send_time}，请使用 HH:MM 格式")
         raise ValueError(f"时间格式错误：{send_time}")
@@ -193,33 +201,38 @@ def schedule_apod_task(send_time: str, target: MsgTarget):
         logger.error(f"设置 NASA 每日天文一图定时任务时发生错误：{e}")
 
 
-def remove_apod_task(target: MsgTarget):
+async def remove_apod_task(target: MsgTarget):
     job_id = generate_job_id(target)
     job = scheduler.get_job(job_id)
     if job:
         job.remove()
         logger.info(f"已移除 NASA 每日天文一图定时任务 (目标: {target})")
-        tasks = load_task_configs()
+        tasks = await load_task_configs()
         tasks = [task for task in tasks if task["target"] != target]
-        save_task_configs(tasks)
+        await save_task_configs(tasks)
     else:
         logger.info(f"未找到 NASA 每日天文一图定时任务 (目标: {target})")
 
 
-try:
-    tasks = load_task_configs()
-    if tasks:
-        for task in tasks:
-            send_time = task["send_time"]
-            target = task["target"]
-            if send_time and target:
-                schedule_apod_task(send_time, target)
-        logger.debug("已恢复所有 NASA 每日天文一图定时任务")
-    else:
-        logger.debug("没有找到任何 NASA 每日天文一图定时任务配置")
-except Exception as e:
-    logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
+async def restore_apod_tasks():
+    try:
+        tasks = await load_task_configs()
+        if tasks:
+            for task in tasks:
+                send_time = task["send_time"]
+                target = task["target"]
+                if send_time and target:
+                    await schedule_apod_task(send_time, target)
+            logger.debug("已恢复所有 NASA 每日天文一图定时任务")
+        else:
+            logger.debug("没有找到任何 NASA 每日天文一图定时任务配置")
+    except Exception as e:
+        logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
 
+
+@driver.on_startup
+async def init_apod_tasks():
+    await restore_apod_tasks()
 
 @scheduler.scheduled_job("cron", hour=13, minute=0, id="clear_apod_cache")
 async def clear_apod_cache():
