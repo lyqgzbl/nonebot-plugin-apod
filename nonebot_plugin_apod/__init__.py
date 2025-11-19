@@ -1,6 +1,4 @@
-import re
 import json
-from datetime import datetime
 
 import aiofiles
 from nonebot.rule import Rule
@@ -22,15 +20,19 @@ from nonebot_plugin_alconna.uniseg import Target, UniMessage, MsgTarget
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
 
 from .config import Config, get_cache_image, set_cache_image
-from .infopuzzle import deepl_translate_text, baidu_translate_text
+from .utils import (
+    translate_text_auto,
+    is_valid_date_format,
+    is_valid_time_format,
+    fetch_apod_data_by_date,
+    fetch_randomly_apod_data,
+)
 from .apod import (
     fetch_apod_data,
     generate_job_id,
     remove_apod_task,
     schedule_apod_task,
     generate_apod_image,
-    fetch_apod_data_by_date,
-    fetch_randomly_apod_data,
 )
 
 
@@ -50,8 +52,6 @@ __plugin_meta__ = PluginMetadata(
 
 
 plugin_config = get_plugin_config(Config)
-baidu_trans = plugin_config.apod_baidu_trans
-deepl_trans = plugin_config.apod_deepl_trans
 apod_infopuzzle = plugin_config.apod_infopuzzle
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
@@ -147,29 +147,13 @@ date_apod_command = on_alconna(
 )
 
 
-def is_valid_time_format(time_str: str) -> bool:
-    if not re.match(r"^\d{1,2}:\d{2}$", time_str):
-        return False
-    try:
-        hour, minute = map(int, time_str.split(":"))
-        return 0 <= hour <= 23 and 0 <= minute <= 59
-    except ValueError:
-        return False
-
-
-def is_valid_date_format(date_str: str) -> bool:
-    try:
-        d = datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
-        return False
-    return d > datetime(1995, 6, 16)
-
-
 @apod_command.handle()
 async def apod_command_handle():
     if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
         await apod_command.finish("获取今日天文一图失败请稍后再试")
-    data = json.loads(apod_cache_json.read_text())
+    async with aiofiles.open(str(apod_cache_json), encoding="utf-8") as f:
+        content = await f.read()
+        data = json.loads(content)
     if data.get("media_type") != "image" or "url" not in data:
         await apod_command.finish("今日 NASA 提供的为天文视频")
     if apod_infopuzzle:
@@ -190,15 +174,12 @@ async def apod_command_handle():
             await apod_command.finish("发送今日的天文一图失败")
     else:
         explanation=data["explanation"]
-        if deepl_trans:
-            explanation = await deepl_translate_text(explanation)
-        elif baidu_trans:
-            explanation = await baidu_translate_text(explanation)
+        explanation=translate_text_auto(explanation)
         await UniMessage.text("今日天文一图为").image(url=data["url"]).finish(
             reply_to=True,
             argot={
                 "name": "explanation",
-                "segment": Text(explanation),
+                "segment": Text(str(explanation)),
                 "command": "简介",
                 "expired_at": 360,
             },
@@ -267,7 +248,7 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
 
 
 @randomly_apod_command.handle()
-async def reandomly_apod_command_handle():
+async def randomly_apod_command_handle():
     data = await fetch_randomly_apod_data()
     if not data:
         await randomly_apod_command.finish("获取随机天文一图失败,请稍后再试。")
@@ -275,15 +256,12 @@ async def reandomly_apod_command_handle():
         await apod_command.finish("随机到了天文视频")
     else:
         explanation=data["explanation"]
-        if deepl_trans:
-            explanation = await deepl_translate_text(explanation)
-        elif baidu_trans:
-            explanation = await baidu_translate_text(explanation)
+        explanation=translate_text_auto(explanation)
         await UniMessage.image(url=data["url"]).send(
             reply_to=True,
             argot={
                 "name": "randomly_apod_explanation",
-                "segment": Text(explanation),
+                "segment": Text(str(explanation)),
                 "command": "简介",
                 "expired_at": 360,
             },
@@ -302,16 +280,13 @@ async def date_apod_command_handle(date: str):
     if data.get("media_type") != "image" or "url" not in data:
         await apod_command.finish("指定日期的天文一图为视频")
     else:
-        exolanation=data["explanation"]
-        if deepl_trans:
-            exolanation = await deepl_translate_text(exolanation)
-        elif baidu_trans:
-            exolanation = await baidu_translate_text(exolanation)
+        explanation=data["explanation"]
+        explanation=translate_text_auto(explanation)
         await UniMessage.image(url=data["url"]).send(
             reply_to=True,
             argot={
                 "name": "date_apod_explanation",
-                "segment": Text(exolanation),
+                "segment": Text(str(explanation)),
                 "command": "简介",
                 "expired_at": 360,
             },
