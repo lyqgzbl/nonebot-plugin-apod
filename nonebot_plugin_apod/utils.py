@@ -44,6 +44,12 @@ def is_valid_date_format(date_str: str) -> bool:
     return d > datetime(1995, 6, 16)
 
 
+async def ensure_apod_data() -> bool:
+    if apod_cache_json.exists():
+        return True
+    return await fetch_apod_data()
+
+
 if baidu_trans:
     if not baidu_trans_api_key or not baidu_trans_appid:
         logger.opt(colors=True).warning("<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>")

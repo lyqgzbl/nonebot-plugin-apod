@@ -8,7 +8,7 @@ import nonebot_plugin_localstore as store
 from nonebot_plugin_htmlrender import md_to_pic
 
 from .config import Config
-from .utils import fetch_apod_data, translate_text_auto
+from .utils import ensure_apod_data, translate_text_auto
 
 
 plugin_config = get_plugin_config(Config)
@@ -45,7 +45,7 @@ async def apod_json_to_md(apod_json):
 
 async def generate_apod_image():
     try:
-        if (not apod_cache_json.exists()) and (not await fetch_apod_data()):
+        if not await ensure_apod_data():
                 return None
         async with aiofiles.open(apod_cache_json, encoding="utf-8") as f:
             content = await f.read()
