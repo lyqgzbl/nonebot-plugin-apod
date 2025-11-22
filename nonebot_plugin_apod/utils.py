@@ -2,6 +2,7 @@ import re
 import json
 import random
 import hashlib
+import asyncio
 from datetime import datetime
 
 import httpx
@@ -57,7 +58,7 @@ if baidu_trans:
 if deepl_trans:
     if not deepl_trans_api_key:
         logger.opt(colors=True).warning("<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>")
-        deelp_trans = False
+        deepl_trans = False
 
 
 async def baidu_translate_text(
@@ -119,11 +120,23 @@ async def deepl_translate_text(
         return f"Exception occurred: {str(e)}"
 
 
-async def translate_text_auto(text: str) -> str:
-    if deelp_trans:
-        return await deepl_translate_text(text)
-    elif baidu_trans:
-        return await baidu_translate_text(text)
+async def translate_text_auto(text: str, timeout: int = 8) -> str:
+    translate_func = (
+        deepl_translate_text if deepl_trans else
+        baidu_translate_text if baidu_trans else
+        None
+    )
+    if not translate_func:
+        return text
+    try:
+        return await asyncio.wait_for(
+            translate_func(text),
+            timeout=timeout
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"翻译超时（>{timeout}s），将返回原文")
+    except Exception as e:
+        logger.error(f"翻译服务发生错误：{e}，将返回原文")
     return text
 
 
