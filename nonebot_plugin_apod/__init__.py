@@ -46,7 +46,7 @@ __plugin_meta__ = PluginMetadata(
     supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
     extra={
         "author": "lyqgzbl <admin@lyqgzbl.com>",
-        "version": "1.0.8",
+        "version": "1.0.9",
     },
 )
 

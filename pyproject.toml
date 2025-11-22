@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-apod"
-version = "1.0.8"
+version = "1.0.9"
 description = "定时发送 NASA 每日提供的天文图片"
 readme = "README.md"
 authors = [{ name = "lyqgzbl", email = "admin@lyqgzbl.com" }]
