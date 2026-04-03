@@ -112,3 +112,28 @@ pip install nonebot-plugin-apod
 - 类型：`str`
 - 默认值：`None`
 - 说明：DeepL 翻译 密钥
+
+### apod_qwen_trans [选填]
+
+- 类型：`bool`
+- 默认值：`False`
+- 说明：是否使用[Qwen-MT 模型](https://help.aliyun.com/zh/model-studio/machine-translation)将天文一图描述翻译为中文
+
+### apod_qwen_mt_model_name [选填]
+
+- 类型: `str`
+- 默认值: `qwen-mt-flash`
+- 说明: 使用的 Qwen-MT 的具体模型
+
+### apod_qwen_mt_api_key [选填]
+
+- 类型: `str`
+- 默认值：`None`
+- 说明：Qwen-MT 密钥
+
+
+### apod_qwen_mt_api_url [选填]
+
+- 类型: `str`
+- 默认值：`https://dashscope.aliyuncs.com/compatible-mode/v1`
+- 说明：默认使用北京地域的 base_url 如果使用新加坡地域的模型 需要配置 base_url 为 `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
