@@ -34,6 +34,8 @@ mirror_api_key = plugin_config.apod_mirror_api_key
 
 
 _httpx_client: httpx.AsyncClient | None = None
+
+
 def get_httpx_client() -> httpx.AsyncClient:
     global _httpx_client
     if _httpx_client is None:
@@ -48,6 +50,8 @@ def get_httpx_client() -> httpx.AsyncClient:
 
 
 driver = get_driver()
+
+
 @driver.on_shutdown
 async def _():
     global _httpx_client
@@ -81,26 +85,32 @@ async def ensure_apod_data() -> bool:
 
 if baidu_trans:
     if not baidu_trans_api_key or not baidu_trans_appid:
-        logger.opt(colors=True).warning("<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>")
+        logger.opt(colors=True).warning(
+            "<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>"
+        )
         baidu_trans = False
 if deepl_trans:
     if not deepl_trans_api_key:
-        logger.opt(colors=True).warning("<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>")
+        logger.opt(colors=True).warning(
+            "<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>"
+        )
         deepl_trans = False
 if qwen_trans:
     if not qwen_mt_api_key:
-        logger.opt(colors=True).warning("<yellow>Qwen翻译配置项不全,Qwen翻译未成功启用</yellow>")
+        logger.opt(colors=True).warning(
+            "<yellow>Qwen翻译配置项不全,Qwen翻译未成功启用</yellow>"
+        )
         qwen_trans = False
 
 
 async def qwen_translate_text(
-        text: str,
-        target_lang: str = "Chinese",
-        source_lang: str = "English",
-        api_key=qwen_mt_api_key,
-        model_name=qwen_mt_model_name,
-        api_url=QWEN_MT_API_URL,
-    ) -> str:
+    text: str,
+    target_lang: str = "Chinese",
+    source_lang: str = "English",
+    api_key=qwen_mt_api_key,
+    model_name=qwen_mt_model_name,
+    api_url=QWEN_MT_API_URL,
+) -> str:
     try:
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -135,12 +145,12 @@ async def qwen_translate_text(
 
 
 async def baidu_translate_text(
-        query,
-        from_lang="auto",
-        to_lang="zh",
-        appid=baidu_trans_appid,
-        api_key=baidu_trans_api_key,
-    ) -> str:
+    query,
+    from_lang="auto",
+    to_lang="zh",
+    appid=baidu_trans_appid,
+    api_key=baidu_trans_api_key,
+) -> str:
     try:
         salt = random.randint(32768, 65536)
         sign = hashlib.md5(f"{appid}{query}{salt}{api_key}".encode()).hexdigest()
@@ -152,8 +162,7 @@ async def baidu_translate_text(
             "salt": salt,
             "sign": sign,
         }
-        headers = {"Content-Type": "application/x-www-form-urlencoded"
-        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
         client = get_httpx_client()
         response = await client.post(BAIDU_API_URL, data=payload, headers=headers)
         result_all = response.text
@@ -168,10 +177,10 @@ async def baidu_translate_text(
 
 
 async def deepl_translate_text(
-        text: str,
-        target_lang: str = "ZH",
-        api_key=deepl_trans_api_key,
-    ) -> str:
+    text: str,
+    target_lang: str = "ZH",
+    api_key=deepl_trans_api_key,
+) -> str:
     try:
         client = get_httpx_client()
         response = await client.post(
@@ -195,18 +204,18 @@ async def deepl_translate_text(
 
 async def translate_text_auto(text: str, timeout: int = 8) -> str:
     translate_func = (
-        qwen_translate_text if qwen_trans else
-        deepl_translate_text if deepl_trans else
-        baidu_translate_text if baidu_trans else
-        None
+        qwen_translate_text
+        if qwen_trans
+        else deepl_translate_text
+        if deepl_trans
+        else baidu_translate_text
+        if baidu_trans
+        else None
     )
     if not translate_func:
         return text
     try:
-        return await asyncio.wait_for(
-            translate_func(text),
-            timeout=timeout
-        )
+        return await asyncio.wait_for(translate_func(text), timeout=timeout)
     except asyncio.TimeoutError:
         logger.warning(f"翻译超时（>{timeout}s），将返回原文")
     except Exception as e:
@@ -257,7 +266,7 @@ async def fetch_randomly_apod_data() -> dict | None:
         return None
 
 
-async def fetch_apod_data_by_mirror(url: str, api_key: str) -> bool:
+async def fetch_apod_data_from_mirror(url: str, api_key: str) -> bool:
     try:
         client = get_httpx_client()
         headers = {"Authorization": f"Bearer {api_key}"}
@@ -272,10 +281,28 @@ async def fetch_apod_data_by_mirror(url: str, api_key: str) -> bool:
         return False
 
 
+async def fetch_apod_data_by_date_from_mirror(
+    url: str, api_key: str, date: str
+) -> dict | None:
+    try:
+        client = get_httpx_client()
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = await client.get(
+            url,
+            headers=headers,
+            params={"date": date},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data
+    except httpx.RequestError as e:
+        logger.error(f"通过镜像获取指定日期天文一图数据时发生错误: {e}")
+        return None
+
 
 async def fetch_data() -> bool:
     if mirror_url and mirror_api_key:
-        ok = await fetch_apod_data_by_mirror(mirror_url, mirror_api_key)
+        ok = await fetch_apod_data_from_mirror(mirror_url, mirror_api_key)
         if ok:
             return True
         logger.warning("镜像获取失败, 回退到 NASA API")

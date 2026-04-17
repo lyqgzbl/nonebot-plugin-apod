@@ -33,6 +33,7 @@ from .utils import (
     is_valid_time_format,
     fetch_apod_data_by_date,
     fetch_randomly_apod_data,
+    fetch_apod_data_by_date_from_mirror,
 )
 
 
@@ -54,6 +55,8 @@ __plugin_meta__ = PluginMetadata(
 plugin_config = get_plugin_config(Config)
 apod_infopuzzle = plugin_config.apod_infopuzzle
 default_time = plugin_config.apod_default_send_time
+mirror_url = plugin_config.apod_mirror_url
+mirror_api_key = plugin_config.apod_mirror_api_key
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
@@ -62,9 +65,12 @@ if not plugin_config.apod_api_key:
     logger.opt(colors=True).warning(
         "<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>"
     )
+
+
 def is_enable() -> Rule:
     def _rule() -> bool:
         return bool(plugin_config.apod_api_key)
+
     return Rule(_rule)
 
 
@@ -78,11 +84,7 @@ apod_setting = on_alconna(
             compact=True,
             description="NASA 每日天文图片设置",
             usage=__plugin_meta__.usage,
-            example=(
-                "/apod 状态\n"
-                "/apod 关闭\n"
-                "/apod 开启 13:30"
-            ),
+            example=("/apod 状态\n/apod 关闭\n/apod 开启 13:30"),
         ),
     ),
     block=True,
@@ -99,9 +101,7 @@ apod_command = on_alconna(
         "今日天文一图",
         meta=CommandMeta(
             description="获取今日天文一图",
-            example=(
-                "/今日天文一图"
-            ),
+            example=("/今日天文一图"),
         ),
     ),
     block=True,
@@ -158,14 +158,18 @@ async def apod_command_handle():
         await apod_command.finish("今日 NASA 提供的为天文视频")
     if not apod_infopuzzle:
         explanation = await translate_text_auto(data["explanation"])
-        await UniMessage.text("今日天文一图为").image(url=data["url"]).finish(
-            reply_to=True,
-            argot={
-                "name": "explanation",
-                "segment": Text(explanation),
-                "command": "简介",
-                "expired_at": 360,
-            },
+        await (
+            UniMessage.text("今日天文一图为")
+            .image(url=data["url"])
+            .finish(
+                reply_to=True,
+                argot={
+                    "name": "explanation",
+                    "segment": Text(explanation),
+                    "command": "简介",
+                    "expired_at": 360,
+                },
+            )
         )
     cache_image = get_cache_image() or await generate_apod_image()
     if not cache_image:
@@ -179,7 +183,7 @@ async def apod_command_handle():
             "segment": Image(url=url),
             "command": "原图",
             "expired_at": 360,
-        }
+        },
     )
 
 
@@ -190,8 +194,7 @@ async def apod_status(target: MsgTarget):
     if not job:
         await apod_setting.finish("NASA 每日天文一图定时任务未开启")
     next_run = (
-        job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
-        if job.next_run_time else "未知"
+        job.next_run_time.strftime("%Y-%m-%d %H:%M:%S") if job.next_run_time else "未知"
     )
     await apod_setting.finish(
         f"NASA 每日天文一图定时任务已开启 | 下次发送时间: {next_run}"
@@ -216,9 +219,7 @@ async def apod_start(send_time: Match[str], target: MsgTarget):
         await apod_setting.finish("时间格式不正确,请使用 HH:MM 格式")
     try:
         await schedule_apod_task(time, target)
-        await apod_setting.finish(
-            f"已开启 NASA 每日天文一图定时任务,发送时间为 {time}"
-        )
+        await apod_setting.finish(f"已开启 NASA 每日天文一图定时任务,发送时间为 {time}")
     except Exception as e:
         logger.error(f"设置 NASA 每日天文一图定时任务时发生错误:{e}")
         await apod_setting.finish("设置 NASA 每日天文一图定时任务时发生错误")
@@ -246,21 +247,27 @@ async def randomly_apod_command_handle():
 @date_apod_command.handle()
 async def date_apod_command_handle(date: str):
     if not is_valid_date_format(date):
-        await date_apod_command.finish("日期格式不正确," \
-        "请使用 YYYY-MM-DD 格式," \
-        "且日期需要在 1995-06-16 之后")
-    data = await fetch_apod_data_by_date(date=date)
-    if not data:
-        await date_apod_command.finish("获取指定日期天文一图失败,请稍后再试。")
-    if data.get("media_type") != "image" or "url" not in data:
-        await date_apod_command.finish("指定日期的天文一图为视频")
-    explanation = await translate_text_auto(data["explanation"])
-    await UniMessage.image(url=data["url"]).send(
-        reply_to=True,
-        argot={
-            "name": "date_apod_explanation",
-            "segment": Text(explanation),
-            "command": "简介",
-            "expired_at": 360,
-        },
-    )
+        await date_apod_command.finish(
+            "日期格式不正确,请使用 YYYY-MM-DD 格式,且日期需要在 1995-06-16 之后"
+        )
+    if mirror_url and mirror_api_key:
+        data = await fetch_apod_data_by_date_from_mirror(
+            mirror_url, mirror_api_key, date
+        )
+        if not data:
+            data = await fetch_apod_data_by_date(date=date)
+            logger.warning("镜像获取指定日期天文一图失败, 回退到 NASA API")
+        if not data:
+            await date_apod_command.finish("获取指定日期天文一图失败,请稍后再试。")
+        if data.get("media_type") != "image" or "url" not in data:
+            await date_apod_command.finish("指定日期的天文一图为视频")
+        explanation = await translate_text_auto(data["explanation"])
+        await UniMessage.image(url=data["url"]).send(
+            reply_to=True,
+            argot={
+                "name": "date_apod_explanation",
+                "segment": Text(explanation),
+                "command": "简介",
+                "expired_at": 360,
+            },
+        )
