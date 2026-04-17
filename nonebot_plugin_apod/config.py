@@ -17,6 +17,8 @@ class Config(BaseModel):
     apod_qwen_mt_model_name: str = "qwen-mt-flash"
     apod_qwen_mt_api_key: str | None = None
     apod_qwen_mt_api_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    apod_mirror_url: str | None = None
+    apod_mirror_api_key: str | None = None
 
 
 # 缓存天文一图图片

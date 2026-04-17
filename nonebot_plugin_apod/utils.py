@@ -29,6 +29,8 @@ qwen_mt_model_name = plugin_config.apod_qwen_mt_model_name
 qwen_mt_api_key = plugin_config.apod_qwen_mt_api_key
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
+mirror_url = plugin_config.apod_mirror_url
+mirror_api_key = plugin_config.apod_mirror_api_key
 
 
 _httpx_client: httpx.AsyncClient | None = None
@@ -74,7 +76,7 @@ def is_valid_date_format(date_str: str) -> bool:
 async def ensure_apod_data() -> bool:
     if apod_cache_json.exists():
         return True
-    return await fetch_apod_data()
+    return await fetch_data()
 
 
 if baidu_trans:
@@ -253,3 +255,29 @@ async def fetch_randomly_apod_data() -> dict | None:
     except httpx.RequestError as e:
         logger.error(f"获取 NASA 随机天文一图数据时发生错误: {e}")
         return None
+
+
+async def fetch_apod_data_by_mirror(url: str, api_key: str) -> bool:
+    try:
+        client = get_httpx_client()
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        apod_cache_json.write_text(json.dumps(data, indent=4))
+        logger.debug("成功通过镜像获取天文一图数据")
+        return True
+    except httpx.RequestError as e:
+        logger.error(f"通过镜像获取天文一图数据时发生错误: {e}")
+        return False
+
+
+
+async def fetch_data() -> bool:
+    if mirror_url and mirror_api_key:
+        ok = await fetch_apod_data_by_mirror(mirror_url, mirror_api_key)
+        if ok:
+            return True
+        logger.warning("镜像获取失败, 回退到 NASA API")
+    ok = await fetch_apod_data()
+    return ok
