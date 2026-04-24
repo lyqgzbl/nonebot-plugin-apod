@@ -4,15 +4,13 @@ from pathlib import Path
 
 import aiofiles
 from nonebot.log import logger
-from nonebot import get_plugin_config
 import nonebot_plugin_localstore as store
 from nonebot_plugin_htmlrender import md_to_pic
 
-from .config import Config
+from .config import plugin_config
 from .utils import ensure_apod_data, translate_text_auto
 
 
-plugin_config = get_plugin_config(Config)
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
 infopuzzle_mode = plugin_config.apod_infopuzzle_dark_mode

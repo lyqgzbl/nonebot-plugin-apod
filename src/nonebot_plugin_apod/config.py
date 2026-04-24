@@ -1,6 +1,8 @@
 from asyncio import Lock
 from pydantic import BaseModel
 
+from nonebot import get_plugin_config
+
 
 class Config(BaseModel):
     apod_api_key: str | None = None
@@ -19,6 +21,9 @@ class Config(BaseModel):
     apod_qwen_mt_api_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     apod_mirror_url: str | None = None
     apod_mirror_api_key: str | None = None
+
+
+plugin_config = get_plugin_config(Config)
 
 
 # 缓存天文一图图片

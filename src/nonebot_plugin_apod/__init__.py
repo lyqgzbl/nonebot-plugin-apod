@@ -4,7 +4,7 @@ import aiofiles
 from nonebot.rule import Rule
 from nonebot.log import logger
 from nonebot.permission import SUPERUSER
-from nonebot import require, get_plugin_config
+from nonebot import require
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
 require("nonebot_plugin_argot")
@@ -19,7 +19,7 @@ from nonebot_plugin_argot.extension import ArgotExtension
 from nonebot_plugin_alconna.uniseg import UniMessage, MsgTarget
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
 
-from .config import Config, get_cache_image, set_cache_image
+from .config import Config, plugin_config, get_cache_image, set_cache_image
 from .apod import (
     generate_job_id,
     remove_apod_task,
@@ -52,7 +52,6 @@ __plugin_meta__ = PluginMetadata(
 )
 
 
-plugin_config = get_plugin_config(Config)
 apod_infopuzzle = plugin_config.apod_infopuzzle
 default_time = plugin_config.apod_default_send_time
 mirror_url = plugin_config.apod_mirror_url

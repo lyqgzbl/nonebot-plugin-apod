@@ -7,18 +7,17 @@ import aiofiles
 from nonebot.log import logger
 import nonebot_plugin_localstore as store
 from nonebot_plugin_apscheduler import scheduler
-from nonebot import get_plugin_config, get_bot, get_driver
+from nonebot import get_bot, get_driver
 from nonebot_plugin_argot import Text, Image, add_argot, get_message_id
 from nonebot_plugin_alconna.uniseg import MsgTarget, Target, UniMessage
 
 from .infopuzzle import generate_apod_image
 from .utils import translate_text_auto, ensure_apod_data
-from .config import Config, get_cache_image, set_cache_image, clear_cache_image
+from .config import plugin_config, get_cache_image, set_cache_image, clear_cache_image
 
 
 driver = get_driver()
 config_lock = asyncio.Lock()
-plugin_config = get_plugin_config(Config)
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
 apod_infopuzzle = plugin_config.apod_infopuzzle

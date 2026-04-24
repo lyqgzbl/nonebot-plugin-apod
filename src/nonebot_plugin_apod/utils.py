@@ -8,12 +8,11 @@ from datetime import datetime
 import httpx
 import aiofiles
 from nonebot.log import logger
-from nonebot import get_plugin_config, get_driver
+from nonebot import get_driver
 import nonebot_plugin_localstore as store
 
-from .config import Config
+from .config import plugin_config
 
-plugin_config = get_plugin_config(Config)
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
