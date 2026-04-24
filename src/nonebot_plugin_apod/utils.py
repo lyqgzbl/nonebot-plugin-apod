@@ -133,8 +133,11 @@ async def qwen_translate_text(
             },
         }
         client = get_httpx_client()
+        url = api_url.rstrip("/")
+        if not url.endswith("/chat/completions"):
+            url += "/chat/completions"
         resp = await client.post(
-            url=api_url.rstrip("/") + "/chat/completions", headers=headers, json=payload
+            url=url, headers=headers, json=payload
         )
         resp.raise_for_status()
         data = resp.json()
