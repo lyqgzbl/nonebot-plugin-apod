@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 
 import httpx
+import aiofiles
 from nonebot.log import logger
 from nonebot import get_plugin_config, get_driver
 import nonebot_plugin_localstore as store
@@ -74,7 +75,7 @@ def is_valid_date_format(date_str: str) -> bool:
         d = datetime.strptime(date_str, "%Y-%m-%d")
     except ValueError:
         return False
-    return d > datetime(1995, 6, 16)
+    return d >= datetime(1995, 6, 16) and d <= datetime.now()
 
 
 async def ensure_apod_data() -> bool:
@@ -83,24 +84,21 @@ async def ensure_apod_data() -> bool:
     return await fetch_data()
 
 
-if baidu_trans:
-    if not baidu_trans_api_key or not baidu_trans_appid:
-        logger.opt(colors=True).warning(
-            "<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>"
-        )
-        baidu_trans = False
-if deepl_trans:
-    if not deepl_trans_api_key:
-        logger.opt(colors=True).warning(
-            "<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>"
-        )
-        deepl_trans = False
-if qwen_trans:
-    if not qwen_mt_api_key:
-        logger.opt(colors=True).warning(
-            "<yellow>Qwen翻译配置项不全,Qwen翻译未成功启用</yellow>"
-        )
-        qwen_trans = False
+if baidu_trans and (not baidu_trans_api_key or not baidu_trans_appid):
+    logger.opt(colors=True).warning(
+        "<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>"
+    )
+    baidu_trans = False
+if deepl_trans and not deepl_trans_api_key:
+    logger.opt(colors=True).warning(
+        "<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>"
+    )
+    deepl_trans = False
+if qwen_trans and not qwen_mt_api_key:
+    logger.opt(colors=True).warning(
+        "<yellow>Qwen翻译配置项不全,Qwen翻译未成功启用</yellow>"
+    )
+    qwen_trans = False
 
 
 async def qwen_translate_text(
@@ -135,13 +133,15 @@ async def qwen_translate_text(
             },
         }
         client = get_httpx_client()
-        resp = await client.post(url=api_url, headers=headers, json=payload)
+        resp = await client.post(
+            url=api_url.rstrip("/") + "/chat/completions", headers=headers, json=payload
+        )
         resp.raise_for_status()
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except Exception as e:
         logger.error(f"Qwen 翻译时发生错误：{e}")
-        return f"Exception occurred: {str(e)}"
+        raise
 
 
 async def baidu_translate_text(
@@ -170,10 +170,12 @@ async def baidu_translate_text(
         if "trans_result" in result:
             return "\n".join([item["dst"] for item in result["trans_result"]])
         else:
-            return f"Error: {result.get('error_msg', '未知错误')}"
+            error_msg = result.get("error_msg", "未知错误")
+            logger.error(f"百度翻译 API 返回错误: {error_msg}")
+            raise RuntimeError(f"百度翻译失败: {error_msg}")
     except Exception as e:
         logger.error(f"百度 翻译时发生错误：{e}")
-        return f"Exception occurred: {str(e)}"
+        raise
 
 
 async def deepl_translate_text(
@@ -199,7 +201,7 @@ async def deepl_translate_text(
         return result["translations"][0]["text"]
     except Exception as e:
         logger.error(f"DeepL 翻译时发生错误：{e}")
-        return f"Exception occurred: {str(e)}"
+        raise
 
 
 async def translate_text_auto(text: str, timeout: int = 8) -> str:
@@ -229,9 +231,10 @@ async def fetch_apod_data() -> bool:
         response = await client.get(NASA_API_URL, params={"api_key": nasa_api_key})
         response.raise_for_status()
         data = response.json()
-        apod_cache_json.write_text(json.dumps(data, indent=4))
+        async with aiofiles.open(apod_cache_json, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(data, indent=4))
         return True
-    except httpx.RequestError as e:
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"获取 NASA 每日天文一图数据时发生错误: {e}")
         return False
 
@@ -243,11 +246,14 @@ async def fetch_apod_data_by_date(date: str) -> dict | None:
             NASA_API_URL,
             params={"api_key": nasa_api_key, "date": date},
         )
+        response.raise_for_status()
         data = response.json()
+        if isinstance(data, dict):
+            return data
         if isinstance(data, list) and len(data) > 0:
             return data[0]
         return None
-    except httpx.RequestError as e:
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"获取 NASA 指定日期天文一图数据时发生错误: {e}")
         return None
 
@@ -259,9 +265,14 @@ async def fetch_randomly_apod_data() -> dict | None:
             NASA_API_URL,
             params={"api_key": nasa_api_key, "count": 1},
         )
+        response.raise_for_status()
         data = response.json()
-        return data[0]
-    except httpx.RequestError as e:
+        if isinstance(data, list) and len(data) > 0:
+            return data[0]
+        if isinstance(data, dict):
+            return data
+        return None
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"获取 NASA 随机天文一图数据时发生错误: {e}")
         return None
 
@@ -273,10 +284,11 @@ async def fetch_apod_data_from_mirror(url: str, api_key: str) -> bool:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
         data = response.json()
-        apod_cache_json.write_text(json.dumps(data, indent=4))
+        async with aiofiles.open(apod_cache_json, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(data, indent=4))
         logger.debug("成功通过镜像获取天文一图数据")
         return True
-    except httpx.RequestError as e:
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"通过镜像获取天文一图数据时发生错误: {e}")
         return False
 
@@ -295,7 +307,7 @@ async def fetch_apod_data_by_date_from_mirror(
         response.raise_for_status()
         data = response.json()
         return data
-    except httpx.RequestError as e:
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"通过镜像获取指定日期天文一图数据时发生错误: {e}")
         return None
 
