@@ -1,4 +1,5 @@
 import json
+from html import escape
 from pathlib import Path
 
 import aiofiles
@@ -19,12 +20,12 @@ apod_cache_json = store.get_plugin_cache_file("apod.json")
 
 
 async def apod_json_to_md(apod_json):
-    title = apod_json["title"]
+    title = escape(apod_json["title"])
     explanation = apod_json["explanation"]
     url = apod_json["url"]
-    copyright = apod_json.get("copyright", "无")
-    date = apod_json["date"]
-    explanation = await translate_text_auto(explanation)
+    copyright = escape(apod_json.get("copyright", "无"))
+    date = escape(apod_json["date"])
+    explanation = escape(await translate_text_auto(explanation))
     return f"""<div class="container">
     <h1>今日天文一图</h1>
     <h2>{title}</h2>
@@ -46,16 +47,16 @@ async def apod_json_to_md(apod_json):
 async def generate_apod_image():
     try:
         if not await ensure_apod_data():
-                return None
+            return None
         async with aiofiles.open(apod_cache_json, encoding="utf-8") as f:
             content = await f.read()
             data = json.loads(content)
         md_content = await apod_json_to_md(data)
         css_file = (
-                Path(__file__).parent
-                / "css"
-                / ("dark.css" if infopuzzle_mode else "light.css")
-            )
+            Path(__file__).parent
+            / "css"
+            / ("dark.css" if infopuzzle_mode else "light.css")
+        )
         img_bytes = await md_to_pic(md_content, width=600, css_path=str(css_file))
         return img_bytes
     except Exception as e:
