@@ -25,15 +25,19 @@ class Config(BaseModel):
 cache_image = None
 cache_lock = Lock()
 
+
 # 获取缓存图片
-def get_cache_image():
-    return cache_image
+async def get_cache_image():
+    async with cache_lock:
+        return cache_image
+
 
 # 设置缓存图片
 async def set_cache_image(image):
     global cache_image
     async with cache_lock:
         cache_image = image
+
 
 # 清除缓存图片
 async def clear_cache_image():
