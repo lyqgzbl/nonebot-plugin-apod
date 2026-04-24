@@ -171,11 +171,11 @@ async def apod_command_handle():
                 },
             )
         )
-    cache_image = get_cache_image() or await generate_apod_image()
+    cache_image = await get_cache_image() or await generate_apod_image()
     if not cache_image:
         await apod_command.finish("发送今日的天文一图失败")
     await set_cache_image(cache_image)
-    url = data["hdurl"] if plugin_config.apod_hd_image else data["url"]
+    url = data.get("hdurl", data["url"]) if plugin_config.apod_hd_image else data["url"]
     await UniMessage.image(raw=cache_image).send(
         reply_to=True,
         argot={
@@ -257,17 +257,19 @@ async def date_apod_command_handle(date: str):
         if not data:
             data = await fetch_apod_data_by_date(date=date)
             logger.warning("镜像获取指定日期天文一图失败, 回退到 NASA API")
-        if not data:
-            await date_apod_command.finish("获取指定日期天文一图失败,请稍后再试。")
-        if data.get("media_type") != "image" or "url" not in data:
-            await date_apod_command.finish("指定日期的天文一图为视频")
-        explanation = await translate_text_auto(data["explanation"])
-        await UniMessage.image(url=data["url"]).send(
-            reply_to=True,
-            argot={
-                "name": "date_apod_explanation",
-                "segment": Text(explanation),
-                "command": "简介",
-                "expired_at": 360,
-            },
-        )
+    else:
+        data = await fetch_apod_data_by_date(date=date)
+    if not data:
+        await date_apod_command.finish("获取指定日期天文一图失败,请稍后再试。")
+    if data.get("media_type") != "image" or "url" not in data:
+        await date_apod_command.finish("指定日期的天文一图为视频")
+    explanation = await translate_text_auto(data["explanation"])
+    await UniMessage.image(url=data["url"]).send(
+        reply_to=True,
+        argot={
+            "name": "date_apod_explanation",
+            "segment": Text(explanation),
+            "command": "简介",
+            "expired_at": 360,
+        },
+    )
