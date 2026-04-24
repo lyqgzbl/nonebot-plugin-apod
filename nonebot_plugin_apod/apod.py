@@ -48,12 +48,9 @@ async def save_task_configs(tasks: list, locked: bool = False):
         ]
         async with aiofiles.open(task_config_file, "w", encoding="utf-8") as f:
             await f.write(
-                json.dumps(
-                    {"tasks": serialized_tasks},
-                    ensure_ascii=False,
-                    indent=4
-                    )
-                )
+                json.dumps({"tasks": serialized_tasks}, ensure_ascii=False, indent=4)
+            )
+
     try:
         if locked:
             await _save()
@@ -81,6 +78,7 @@ async def remove_apod_task(target: MsgTarget):
 async def load_task_configs(locked: bool = False) -> list[dict]:
     if not task_config_file.exists():
         return []
+
     async def _load():
         if not task_config_file.exists():
             return []
@@ -90,6 +88,7 @@ async def load_task_configs(locked: bool = False) -> list[dict]:
             {"send_time": task["send_time"], "target": Target.load(task["target"])}
             for task in config.get("tasks", [])
         ]
+
     try:
         if locked:
             return await _load()
@@ -108,7 +107,9 @@ async def send_apod(target: MsgTarget):
     try:
         bot = get_bot(target.self_id)
     except Exception:
-        logger.opt(colors=True).warning("<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>")
+        logger.opt(colors=True).warning(
+            "<yellow>未找到可用的机器人实例，此任务将被跳过</yellow>"
+        )
         return
     if not await ensure_apod_data():
         await UniMessage.text("未能获取到今日的天文一图，请稍后再试。").send(
@@ -123,9 +124,13 @@ async def send_apod(target: MsgTarget):
         return
     if not apod_infopuzzle:
         explanation = await translate_text_auto(data["explanation"])
-        message = await UniMessage.text("今日天文一图为").image(url=data["url"]).send(
-            target=target,
-            bot=bot,
+        message = (
+            await UniMessage.text("今日天文一图为")
+            .image(url=data["url"])
+            .send(
+                target=target,
+                bot=bot,
+            )
         )
         await add_argot(
             message_id=get_message_id(message) or "",
@@ -134,7 +139,8 @@ async def send_apod(target: MsgTarget):
             segment=Text(explanation),
             expired_at=timedelta(minutes=2),
         )
-    cache_image = get_cache_image() or await generate_apod_image()
+        return
+    cache_image = await get_cache_image() or await generate_apod_image()
     if not cache_image:
         await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(
             target=target,
@@ -142,7 +148,7 @@ async def send_apod(target: MsgTarget):
         )
         return
     await set_cache_image(cache_image)
-    url = data["hdurl"] if plugin_config.apod_hd_image else data["url"]
+    url = data.get("hdurl", data["url"]) if plugin_config.apod_hd_image else data["url"]
     message = await UniMessage.image(raw=cache_image).send(
         target=target,
         bot=bot,
@@ -181,7 +187,7 @@ async def schedule_apod_task(send_time: str, target: MsgTarget):
             await save_task_configs(tasks, locked=True)
     except ValueError:
         logger.error(f"时间格式错误：{send_time}，请使用 HH:MM 格式")
-        raise ValueError(f"时间格式错误：{send_time}")
+        raise ValueError(f"时间格式错误：{send_time}") from None
     except Exception as e:
         logger.error(f"设置 NASA 每日天文一图定时任务时发生错误：{e}")
 
@@ -213,11 +219,11 @@ async def restore_apod_tasks():
         logger.error(f"恢复 NASA 每日天文一图定时任务时发生错误：{e}")
 
 
-@scheduler.scheduled_job("cron", hour=13, minute=0, id="apod_clear_cache")
+@scheduler.scheduled_job("cron", hour=12, minute=0, id="apod_clear_cache")
 async def apod_clea_cache():
     try:
         if apod_cache_json.exists():
-            apod_cache_json.unlink()
+            await asyncio.to_thread(apod_cache_json.unlink)
             logger.debug("apod 缓存 JSON 已清除")
         else:
             logger.debug("apod 缓存 JSON 不存在")
