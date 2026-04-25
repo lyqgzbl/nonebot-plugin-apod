@@ -10,7 +10,6 @@ from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 require("nonebot_plugin_argot")
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
-require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_apscheduler")
 import nonebot_plugin_localstore as store
 from nonebot_plugin_argot import Image, Text
