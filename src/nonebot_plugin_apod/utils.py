@@ -3,6 +3,7 @@ import json
 import random
 import hashlib
 import asyncio
+import contextlib
 from datetime import datetime
 
 import httpx
@@ -41,6 +42,7 @@ def get_httpx_client() -> httpx.AsyncClient:
     if _httpx_client is None:
         _httpx_client = httpx.AsyncClient(
             timeout=20,
+            follow_redirects=True,
             limits=httpx.Limits(
                 max_connections=20,
                 max_keepalive_connections=10,
@@ -79,23 +81,34 @@ def is_valid_date_format(date_str: str) -> bool:
 
 async def ensure_apod_data() -> bool:
     if apod_cache_json.exists():
-        return True
+        try:
+            content = apod_cache_json.read_text(encoding="utf-8")
+            data = json.loads(content)
+            cached_date = data.get("date", "")
+            today = datetime.now().strftime("%Y-%m-%d")
+            if cached_date == today:
+                return True
+            logger.debug(f"天文一图数据缓存过期（{cached_date}）,将重新获取")
+        except (json.JSONDecodeError, KeyError, OSError) as e:
+            logger.warning(f"读取天文一图数据缓存失败: {e}, 将重新获取")
+        with contextlib.suppress(OSError):
+            apod_cache_json.unlink()
     return await fetch_data()
 
 
 if baidu_trans and (not baidu_trans_api_key or not baidu_trans_appid):
     logger.opt(colors=True).warning(
-        "<yellow>百度翻译配置项不全,百度翻译未成功启用</yellow>"
+        "<yellow>百度翻译配置项不全, 百度翻译未成功启用</yellow>"
     )
     baidu_trans = False
 if deepl_trans and not deepl_trans_api_key:
     logger.opt(colors=True).warning(
-        "<yellow>DeepL翻译配置项不全,DeepL翻译未成功启用</yellow>"
+        "<yellow>DeepL翻译配置项不全, DeepL翻译未成功启用</yellow>"
     )
     deepl_trans = False
 if qwen_trans and not qwen_mt_api_key:
     logger.opt(colors=True).warning(
-        "<yellow>Qwen翻译配置项不全,Qwen翻译未成功启用</yellow>"
+        "<yellow>Qwen翻译配置项不全, Qwen翻译未成功启用</yellow>"
     )
     qwen_trans = False
 
@@ -135,9 +148,7 @@ async def qwen_translate_text(
         url = api_url.rstrip("/")
         if not url.endswith("/chat/completions"):
             url += "/chat/completions"
-        resp = await client.post(
-            url=url, headers=headers, json=payload
-        )
+        resp = await client.post(url=url, headers=headers, json=payload)
         resp.raise_for_status()
         data = resp.json()
         return data["choices"][0]["message"]["content"]
