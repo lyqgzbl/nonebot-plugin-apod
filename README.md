@@ -113,27 +113,28 @@ pip install nonebot-plugin-apod
 - 默认值：`None`
 - 说明：DeepL 翻译 密钥
 
-### apod_qwen_trans [选填]
+### apod_openai_trans [选填]
 
 - 类型：`bool`
 - 默认值：`False`
-- 说明：是否使用[Qwen-MT 模型](https://help.aliyun.com/zh/model-studio/machine-translation)将天文一图描述翻译为中文
+- 说明：是否使用兼容 OpenAI 接口规范的大模型（如 OpenAI / DeepSeek / Qwen / Ollama 等）将天文一图描述翻译为中文
 
-### apod_qwen_mt_model_name [选填]
+### apod_openai_model_name [选填]
 
-- 类型: `str`
-- 默认值: `qwen-mt-flash`
-- 说明: 使用的 Qwen-MT 的具体模型
+- 类型: `str | None`
+- 默认值: `None`
+- 说明: 使用的模型名称（如 `gpt-4o-mini`, `deepseek-chat`, `qwen-plus` 等）。若调用的接口无需传入模型参数（如部分自建代理），可保留 `None`
 
-### apod_qwen_mt_api_key [选填]
+### apod_openai_api_key [选填]
 
-- 类型: `str`
+- 类型: `str | None`
 - 默认值：`None`
-- 说明：Qwen-MT 密钥
+- 说明：OpenAI 兼容接口的 API Key / 密钥
 
-
-### apod_qwen_mt_api_url [选填]
+### apod_openai_api_url [选填]
 
 - 类型: `str`
-- 默认值：`https://dashscope.aliyuncs.com/compatible-mode/v1`
-- 说明：默认使用北京地域的 base_url 如果使用新加坡地域的模型 需要配置 base_url 为 `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- 默认值：`https://api.openai.com/v1`
+- 说明：OpenAI 兼容接口的 Base API URL（如 DeepSeek 可填 `https://api.deepseek.com`，Qwen 可填 `https://dashscope.aliyuncs.com/compatible-mode/v1`）
+
+> **注**：为保持向后兼容，旧版本的 `apod_qwen_trans`、`apod_qwen_mt_model_name`、`apod_qwen_mt_api_key` 和 `apod_qwen_mt_api_url` 配置项依然生效。

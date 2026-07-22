@@ -17,7 +17,7 @@ from .config import plugin_config
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
-qwen_trans = plugin_config.apod_qwen_trans
+openai_trans = plugin_config.apod_openai_trans or plugin_config.apod_qwen_trans
 apod_infopuzzle = plugin_config.apod_infopuzzle
 NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 baidu_trans_appid = plugin_config.apod_baidu_trans_appid
@@ -25,9 +25,29 @@ DEEPL_API_URL = "https://api-free.deepl.com/v2/translate"
 deepl_trans_api_key = plugin_config.apod_deepl_trans_api_key
 baidu_trans_api_key = plugin_config.apod_baidu_trans_api_key
 BAIDU_API_URL = "http://api.fanyi.baidu.com/api/trans/vip/translate"
-QWEN_MT_API_URL = plugin_config.apod_qwen_mt_api_url
-qwen_mt_model_name = plugin_config.apod_qwen_mt_model_name
-qwen_mt_api_key = plugin_config.apod_qwen_mt_api_key
+
+openai_api_key = plugin_config.apod_openai_api_key or plugin_config.apod_qwen_mt_api_key
+openai_model_name = (
+    plugin_config.apod_openai_model_name
+    if plugin_config.apod_openai_trans or plugin_config.apod_openai_model_name
+    else (
+        plugin_config.apod_qwen_mt_model_name
+        if plugin_config.apod_qwen_trans
+        else None
+    )
+)
+OPENAI_API_URL = (
+    plugin_config.apod_openai_api_url
+    if plugin_config.apod_openai_trans or not plugin_config.apod_qwen_trans
+    else plugin_config.apod_qwen_mt_api_url
+)
+
+# 兼容保留
+qwen_trans = openai_trans
+QWEN_MT_API_URL = OPENAI_API_URL
+qwen_mt_model_name = openai_model_name
+qwen_mt_api_key = openai_api_key
+
 apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 mirror_url = plugin_config.apod_mirror_url
@@ -106,20 +126,21 @@ if deepl_trans and not deepl_trans_api_key:
         "<yellow>DeepL翻译配置项不全, DeepL翻译未成功启用</yellow>"
     )
     deepl_trans = False
-if qwen_trans and not qwen_mt_api_key:
+if openai_trans and not openai_api_key:
     logger.opt(colors=True).warning(
-        "<yellow>Qwen翻译配置项不全, Qwen翻译未成功启用</yellow>"
+        "<yellow>OpenAI翻译配置项不全, OpenAI翻译未成功启用</yellow>"
     )
+    openai_trans = False
     qwen_trans = False
 
 
-async def qwen_translate_text(
+async def openai_translate_text(
     text: str,
     target_lang: str = "Chinese",
     source_lang: str = "English",
-    api_key=qwen_mt_api_key,
-    model_name=qwen_mt_model_name,
-    api_url=QWEN_MT_API_URL,
+    api_key=openai_api_key,
+    model_name=openai_model_name,
+    api_url=OPENAI_API_URL,
 ) -> str:
     try:
         headers = {
@@ -127,23 +148,27 @@ async def qwen_translate_text(
             "Content-Type": "application/json",
         }
         payload = {
-            "model": model_name,
             "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional astronomical translator. "
+                        f"Translate the text from {source_lang} to {target_lang}. "
+                        "Use professional astronomical terminology, maintain "
+                        "scientific accuracy, and adopt a natural Chinese "
+                        "popular science style. Output ONLY the translation result "
+                        "without any explanations or extra markdown tags."
+                    ),
+                },
                 {
                     "role": "user",
                     "content": text,
-                }
+                },
             ],
-            "translation_options": {
-                "source_lang": source_lang,
-                "target_lang": target_lang,
-                "domains": (
-                    "The text is from astronomy domain. Use professional astronomical "
-                    "terminology and maintain scientific accuracy."
-                    "Astronomy popular science article, natural Chinese style"
-                ),
-            },
         }
+        if model_name:
+            payload["model"] = model_name
+
         client = get_httpx_client()
         url = api_url.rstrip("/")
         if not url.endswith("/chat/completions"):
@@ -153,8 +178,12 @@ async def qwen_translate_text(
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except Exception as e:
-        logger.error(f"Qwen 翻译时发生错误：{e}")
+        logger.error(f"OpenAI 翻译时发生错误：{e}")
         raise
+
+
+# 兼容旧版本别名
+qwen_translate_text = openai_translate_text
 
 
 async def baidu_translate_text(
@@ -219,8 +248,8 @@ async def deepl_translate_text(
 
 async def translate_text_auto(text: str, timeout: int = 8) -> str:
     translate_func = (
-        qwen_translate_text
-        if qwen_trans
+        openai_translate_text
+        if openai_trans
         else deepl_translate_text
         if deepl_trans
         else baidu_translate_text

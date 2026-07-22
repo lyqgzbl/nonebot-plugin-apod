@@ -11,6 +11,7 @@ def pytest_configure(config: pytest.Config):
         "apod_hd_image": False,
         "apod_baidu_trans": False,
         "apod_deepl_trans": False,
+        "apod_openai_trans": False,
         "apod_qwen_trans": False,
         "apod_infopuzzle": True,
     }

@@ -15,6 +15,11 @@ class Config(BaseModel):
     apod_infopuzzle_dark_mode: bool = False
     apod_deepl_trans: bool = False
     apod_deepl_trans_api_key: str | None = None
+    apod_openai_trans: bool = False
+    apod_openai_model_name: str | None = None
+    apod_openai_api_key: str | None = None
+    apod_openai_api_url: str = "https://api.openai.com/v1"
+    # 向后兼容配置项
     apod_qwen_trans: bool = False
     apod_qwen_mt_model_name: str = "qwen-mt-flash"
     apod_qwen_mt_api_key: str | None = None
