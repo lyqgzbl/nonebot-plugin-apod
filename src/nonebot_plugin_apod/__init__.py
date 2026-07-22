@@ -10,6 +10,7 @@ from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 require("nonebot_plugin_argot")
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_localstore")
+require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_apscheduler")
 import nonebot_plugin_localstore as store
 from nonebot_plugin_argot import Image, Text
@@ -46,7 +47,7 @@ __plugin_meta__ = PluginMetadata(
     supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
     extra={
         "author": "lyqgzbl <admin@lyqgzbl.com>",
-        "version": "1.3.0",
+        "version": "1.3.1",
     },
 )
 
