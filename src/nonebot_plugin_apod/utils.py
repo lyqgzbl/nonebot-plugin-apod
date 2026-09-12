@@ -5,6 +5,7 @@ import hashlib
 import asyncio
 import contextlib
 from datetime import datetime
+from typing import Any
 
 import httpx
 import aiofiles
@@ -31,9 +32,7 @@ openai_model_name = (
     plugin_config.apod_openai_model_name
     if plugin_config.apod_openai_trans or plugin_config.apod_openai_model_name
     else (
-        plugin_config.apod_qwen_mt_model_name
-        if plugin_config.apod_qwen_trans
-        else None
+        plugin_config.apod_qwen_mt_model_name if plugin_config.apod_qwen_trans else None
     )
 )
 OPENAI_API_URL = (
@@ -147,7 +146,7 @@ async def openai_translate_text(
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        payload = {
+        payload: dict[str, Any] = {
             "messages": [
                 {
                     "role": "system",

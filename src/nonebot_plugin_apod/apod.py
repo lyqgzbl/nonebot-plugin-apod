@@ -13,7 +13,7 @@ from nonebot_plugin_alconna.uniseg import MsgTarget, Target, UniMessage
 
 from .infopuzzle import generate_apod_image
 from .utils import translate_text_auto, ensure_apod_data
-from .config import plugin_config, get_cache_image, set_cache_image, clear_cache_image
+from .config import plugin_config, get_cache_image, clear_cache_image
 
 
 driver = get_driver()
@@ -139,14 +139,13 @@ async def send_apod(target: MsgTarget):
             expired_at=timedelta(minutes=2),
         )
         return
-    cache_image = await get_cache_image() or await generate_apod_image()
+    cache_image = await get_cache_image(generate_apod_image)
     if not cache_image:
         await UniMessage.text("发送今日的天文一图失败，请稍后再试。").send(
             target=target,
             bot=bot,
         )
         return
-    await set_cache_image(cache_image)
     url = data.get("hdurl", data["url"]) if plugin_config.apod_hd_image else data["url"]
     message = await UniMessage.image(raw=cache_image).send(
         target=target,

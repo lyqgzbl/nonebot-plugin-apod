@@ -19,7 +19,7 @@ from nonebot_plugin_argot.extension import ArgotExtension
 from nonebot_plugin_alconna.uniseg import UniMessage, MsgTarget
 from nonebot_plugin_alconna import Args, Match, Option, Alconna, CommandMeta, on_alconna
 
-from .config import Config, plugin_config, get_cache_image, set_cache_image
+from .config import Config, plugin_config, get_cache_image
 from .apod import (
     generate_job_id,
     remove_apod_task,
@@ -170,10 +170,9 @@ async def apod_command_handle():
                 },
             )
         )
-    cache_image = await get_cache_image() or await generate_apod_image()
+    cache_image = await get_cache_image(generate_apod_image)
     if not cache_image:
         await apod_command.finish("发送今日的天文一图失败")
-    await set_cache_image(cache_image)
     url = data.get("hdurl", data["url"]) if plugin_config.apod_hd_image else data["url"]
     await UniMessage.image(raw=cache_image).send(
         reply_to=True,

@@ -1,7 +1,9 @@
-from asyncio import Lock
+from collections.abc import Awaitable, Callable
 from pydantic import BaseModel
 
 from nonebot import get_plugin_config
+
+from .singleflight import SingleFlight
 
 
 class Config(BaseModel):
@@ -32,25 +34,41 @@ plugin_config = get_plugin_config(Config)
 
 
 # 缓存天文一图图片
-cache_image = None
-cache_lock = Lock()
+cache_image: bytes | None = None
+cache_flight: SingleFlight[bytes | None] = SingleFlight()
+cache_lock = cache_flight
 
 
 # 获取缓存图片
-async def get_cache_image():
-    async with cache_lock:
+async def get_cache_image(
+    generator: Callable[[], Awaitable[bytes | None]] | None = None,
+) -> bytes | None:
+    global cache_image
+    if cache_image is not None:
         return cache_image
+
+    if generator is None:
+        return None
+
+    async def _generate_and_cache() -> bytes | None:
+        global cache_image
+        if cache_image is not None:
+            return cache_image
+        img = await generator()
+        if img:
+            cache_image = img
+        return img
+
+    return await cache_flight.do("apod_image", _generate_and_cache)
 
 
 # 设置缓存图片
-async def set_cache_image(image):
+async def set_cache_image(image: bytes | None):
     global cache_image
-    async with cache_lock:
-        cache_image = image
+    cache_image = image
 
 
 # 清除缓存图片
 async def clear_cache_image():
     global cache_image
-    async with cache_lock:
-        cache_image = None
+    cache_image = None
