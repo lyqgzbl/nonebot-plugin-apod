@@ -4,7 +4,7 @@ import random
 import hashlib
 import asyncio
 import contextlib
-from datetime import datetime
+from datetime import date as calendar_date, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -14,13 +14,13 @@ from nonebot import get_driver
 import nonebot_plugin_localstore as store
 
 from .config import plugin_config
+from .nasa import NASA_API_URL, nasa_today, normalize_apod
 
 nasa_api_key = plugin_config.apod_api_key
 baidu_trans = plugin_config.apod_baidu_trans
 deepl_trans = plugin_config.apod_deepl_trans
 openai_trans = plugin_config.apod_openai_trans or plugin_config.apod_qwen_trans
 apod_infopuzzle = plugin_config.apod_infopuzzle
-NASA_API_URL = "https://api.nasa.gov/planetary/apod"
 baidu_trans_appid = plugin_config.apod_baidu_trans_appid
 DEEPL_API_URL = "https://api-free.deepl.com/v2/translate"
 deepl_trans_api_key = plugin_config.apod_deepl_trans_api_key
@@ -103,9 +103,9 @@ async def ensure_apod_data() -> bool:
         try:
             content = apod_cache_json.read_text(encoding="utf-8")
             data = json.loads(content)
-            cached_date = data.get("date", "")
-            today = datetime.now().strftime("%Y-%m-%d")
-            if cached_date == today:
+            cached_date = data.get("date", "") if isinstance(data, dict) else ""
+            today = nasa_today().isoformat()
+            if isinstance(data, dict) and cached_date == today:
                 return True
             logger.debug(f"天文一图数据缓存过期（{cached_date}）,将重新获取")
         except (json.JSONDecodeError, KeyError, OSError) as e:
@@ -267,55 +267,54 @@ async def translate_text_auto(text: str, timeout: int = 8) -> str:
 
 
 async def fetch_apod_data() -> bool:
-    try:
-        client = get_httpx_client()
-        response = await client.get(NASA_API_URL, params={"api_key": nasa_api_key})
-        response.raise_for_status()
-        data = response.json()
-        async with aiofiles.open(apod_cache_json, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(data, indent=4))
-        return True
-    except (httpx.RequestError, httpx.HTTPStatusError) as e:
-        logger.error(f"获取 NASA 每日天文一图数据时发生错误: {e}")
+    data = await fetch_apod_data_by_date(nasa_today().isoformat())
+    if data is None:
         return False
+    async with aiofiles.open(apod_cache_json, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(data, indent=4))
+    return True
 
 
 async def fetch_apod_data_by_date(date: str) -> dict | None:
     try:
+        parsed_date = calendar_date.fromisoformat(date)
         client = get_httpx_client()
+        params = {"api_key": nasa_api_key or "DEMO_KEY", "date": date}
+        response = await client.get(NASA_API_URL, params=params)
+        response.raise_for_status()
+        data = normalize_apod(response.json(), date, nasa=True)
+        if data is not None:
+            return data
+        # The collection endpoint currently ignores some date queries. Its
+        # date-specific route returns the requested historical entry directly.
         response = await client.get(
-            NASA_API_URL,
-            params={"api_key": nasa_api_key, "date": date},
+            f"{NASA_API_URL}/{parsed_date.strftime('%y%m%d')}",
+            params={"api_key": nasa_api_key or "DEMO_KEY"},
         )
         response.raise_for_status()
-        data = response.json()
-        if isinstance(data, dict):
-            return data
-        if isinstance(data, list) and len(data) > 0:
-            return data[0]
-        return None
-    except (httpx.RequestError, httpx.HTTPStatusError) as e:
+        return normalize_apod(response.json(), date, nasa=True)
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as e:
         logger.error(f"获取 NASA 指定日期天文一图数据时发生错误: {e}")
         return None
 
 
 async def fetch_randomly_apod_data() -> dict | None:
-    try:
-        client = get_httpx_client()
-        response = await client.get(
-            NASA_API_URL,
-            params={"api_key": nasa_api_key, "count": 1},
-        )
-        response.raise_for_status()
-        data = response.json()
-        if isinstance(data, list) and len(data) > 0:
-            return data[0]
-        if isinstance(data, dict):
+    # Do not rely on count: NASA currently returns its latest collection even
+    # for count=1. Sample a date across the full APOD archive instead.
+    first = calendar_date(1995, 6, 16)
+    span = (nasa_today() - first).days
+    for _ in range(3):
+        selected = (first + timedelta(days=random.randint(0, span))).isoformat()
+        if mirror_url and mirror_api_key:
+            data = await fetch_apod_data_by_date_from_mirror(
+                mirror_url, mirror_api_key, selected
+            )
+            if data is not None:
+                return data
+        data = await fetch_apod_data_by_date(selected)
+        if data is not None:
             return data
-        return None
-    except (httpx.RequestError, httpx.HTTPStatusError) as e:
-        logger.error(f"获取 NASA 随机天文一图数据时发生错误: {e}")
-        return None
+    return None
 
 
 async def fetch_apod_data_from_mirror(url: str, api_key: str) -> bool:
@@ -324,12 +323,17 @@ async def fetch_apod_data_from_mirror(url: str, api_key: str) -> bool:
         headers = {"Authorization": f"Bearer {api_key}"}
         response = await client.get(url, headers=headers)
         response.raise_for_status()
-        data = response.json()
+        payload = response.json()
+        # The mirror may intentionally serve its latest cached day.
+        date = payload.get("date") if isinstance(payload, dict) else None
+        data = normalize_apod(payload, date, nasa=False) if date else None
+        if data is None:
+            return False
         async with aiofiles.open(apod_cache_json, "w", encoding="utf-8") as f:
             await f.write(json.dumps(data, indent=4))
         logger.debug("成功通过镜像获取天文一图数据")
         return True
-    except (httpx.RequestError, httpx.HTTPStatusError) as e:
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as e:
         logger.error(f"通过镜像获取天文一图数据时发生错误: {e}")
         return False
 
@@ -346,9 +350,8 @@ async def fetch_apod_data_by_date_from_mirror(
             params={"date": date},
         )
         response.raise_for_status()
-        data = response.json()
-        return data
-    except (httpx.RequestError, httpx.HTTPStatusError) as e:
+        return normalize_apod(response.json(), date, nasa=False)
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as e:
         logger.error(f"通过镜像获取指定日期天文一图数据时发生错误: {e}")
         return None
 

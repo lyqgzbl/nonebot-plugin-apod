@@ -60,15 +60,15 @@ apod_cache_json = store.get_plugin_cache_file("apod.json")
 task_config_file = store.get_plugin_data_file("apod_task_config.json")
 
 
-if not plugin_config.apod_api_key:
+if not (plugin_config.apod_api_key or (mirror_url and mirror_api_key)):
     logger.opt(colors=True).warning(
-        "<yellow>缺失必要配置项 'apod_api_key'，已禁用该插件</yellow>"
+        "<yellow>未配置 NASA API Key 或完整镜像配置，已禁用该插件</yellow>"
     )
 
 
 def is_enable() -> Rule:
     def _rule() -> bool:
-        return bool(plugin_config.apod_api_key)
+        return bool(plugin_config.apod_api_key or (mirror_url and mirror_api_key))
 
     return Rule(_rule)
 

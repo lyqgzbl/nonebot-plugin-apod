@@ -1,11 +1,20 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import pytest
 import nonebot
 from nonebug import NONEBOT_INIT_KWARGS
 
 
 def pytest_configure(config: pytest.Config):
+    storage = TemporaryDirectory(prefix="apod-tests-")
+    config.add_cleanup(storage.cleanup)
+    root = Path(storage.name)
     config.stash[NONEBOT_INIT_KWARGS] = {
         "driver": "~none",
+        "localstore_cache_dir": root / "cache",
+        "localstore_data_dir": root / "data",
+        "localstore_config_dir": root / "config",
         "apod_api_key": "TEST_NASA_KEY",
         "apod_default_send_time": "13:00",
         "apod_hd_image": False,
